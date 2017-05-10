@@ -23,7 +23,7 @@ allprojects {
 
 ```
 dependencies {
-    compile 'com.github.anthill-services:runtime-java:0.1'
+    compile 'com.github.anthill-services:anthill-runtime-java:0.1'
 }
 ```
 
@@ -45,7 +45,7 @@ dependencies {
 ```xml
 <dependency>
     <groupId>com.github.anthill-services</groupId>
-    <artifactId>runtime-java</artifactId>
+    <artifactId>anthill-runtime-java</artifactId>
     <version>0.1</version>
 </dependency>
 ```
