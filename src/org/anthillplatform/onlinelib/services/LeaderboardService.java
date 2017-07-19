@@ -21,8 +21,6 @@ public class LeaderboardService extends Service
     public static LeaderboardService get() { return instance; }
     private static void set(LeaderboardService service) { instance = service; }
 
-    public static final String CATEGORY_TOP = "";
-
     public static class LeaderboardResult
     {
         public static class Entry
@@ -30,7 +28,7 @@ public class LeaderboardService extends Service
             public int rank;
             public float score;
             public String display_name;
-            public int account;
+            public String account;
             public JSONObject profile;
         }
 
@@ -54,13 +52,19 @@ public class LeaderboardService extends Service
         void complete(LeaderboardService service, LeaderboardResult result, Status status);
     }
 
-    public void getLeaderboardTop(String name, String order, AccessToken accessToken,
+    public void getLeaderboard(String name, String order, AccessToken accessToken,
               final LeaderboardCallback profileCallback)
     {
-        getLeaderboard(name, order, CATEGORY_TOP, accessToken, profileCallback);
+        getLeaderboard(name, order, 100, 0, accessToken, profileCallback);
     }
 
-    public void getLeaderboard(String name, String order, String category,
+    public void getLeaderboard(String name, String order, int limit, int offset,
+                               AccessToken accessToken, final LeaderboardCallback profileCallback)
+    {
+        getLeaderboard(name, order, limit, offset, null, accessToken, profileCallback);
+    }
+
+    public void getLeaderboard(String name, String order, int limit, int offset, String arbitraryAccount,
                                AccessToken accessToken, final LeaderboardCallback profileCallback)
     {
         JsonRequest jsonRequest = new JsonRequest(getOnlineLib(), getLocation() + "/leaderboard/" +
@@ -85,27 +89,49 @@ public class LeaderboardService extends Service
 
                         entry.display_name = entryValue.optString("display_name", "??");
                         entry.score = (float) entryValue.optDouble("score", 0);
-                        entry.account = entryValue.optInt("account", 0);
+                        entry.account = entryValue.optString("account",
+                            String.valueOf(entryValue.optInt("account", 0)));
                         entry.rank = entryValue.optInt("rank", 1);
                         entry.profile = entryValue.optJSONObject("profile");
 
                         result.getEntries().add(entry);
                     }
                     profileCallback.complete(LeaderboardService.this, result, Status.success);
-                } else
+                }
+                else
                 {
                     profileCallback.complete(LeaderboardService.this, null, status);
                 }
             }
         });
 
+        Map<String, String> args = new HashMap<String, String >();
+
+        args.put("limit", String.valueOf(limit));
+        args.put("offset", String.valueOf(offset));
+
+        if (arbitraryAccount != null)
+        {
+            args.put("arbitrary_account", arbitraryAccount);
+        }
+
+        jsonRequest.setQueryArguments(args);
         jsonRequest.setToken(accessToken);
         jsonRequest.get();
     }
 
-    public void postLeaderboard(String name, String order, String category, float score,
+    public void postLeaderboard(String name, String order, float score,
                                 String display_name, int expire_in,
-                                AccessToken accessToken, Map<String, String> custom,
+                                AccessToken accessToken,
+                                final OnlineLib.Callback callback)
+    {
+        postLeaderboard(name, order, score, display_name, expire_in, null, null, accessToken, callback);
+    }
+
+    public void postLeaderboard(String name, String order, float score,
+                                String display_name, int expire_in,
+                                JSONObject profile, String arbitraryAccount,
+                                AccessToken accessToken,
                                 final OnlineLib.Callback callback)
     {
         Map<String, String> queryArguments = new HashMap<String, String>();
@@ -129,12 +155,15 @@ public class LeaderboardService extends Service
         options.put("display_name", display_name);
         options.put("expire_in", String.valueOf(expire_in));
 
-        if (custom != null)
+        // warning, specifying this would require 'arbitrary_account'
+        if (arbitraryAccount != null)
         {
-            for (Map.Entry<String, String> entry : custom.entrySet())
-            {
-                options.put("_" + entry.getKey(), entry.getValue());
-            }
+            options.put("arbitrary_account", arbitraryAccount);
+        }
+
+        if (profile != null)
+        {
+            options.put("profile", profile.toString(0));
         }
 
         jsonRequest.setQueryArguments(queryArguments);

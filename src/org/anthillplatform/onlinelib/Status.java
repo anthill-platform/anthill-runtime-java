@@ -16,5 +16,6 @@ public enum Status
     pending,
     tooManyRequests,
     banned,
-    serviceUnavailable
+    serviceUnavailable,
+    gone
 }

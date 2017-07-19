@@ -8,6 +8,12 @@ import java.util.HashMap;
 
 public abstract class JsonRPC
 {
+    private static final ResponseHandler NoResponse = new ResponseHandler()
+    {
+        public void success(Object response) {}
+        public void error(int code, String message, String data) {}
+    };
+
     private HashMap<String, MethodHandler> handlers;
     private HashMap<Integer, ResponseHandler> responseHandlers;
     private int nextId = 1;
@@ -276,6 +282,9 @@ public abstract class JsonRPC
         toWrite.put("id", nextId);
         toWrite.put("params", params);
 
+        if (responseHandler == null)
+            responseHandler = NoResponse;
+
         responseHandlers.put(nextId, responseHandler);
         nextId++;
 
@@ -298,6 +307,9 @@ public abstract class JsonRPC
 
         toWrite.put("id", nextId);
         toWrite.put("params", p);
+
+        if (responseHandler == null)
+            responseHandler = NoResponse;
 
         responseHandlers.put(nextId, responseHandler);
         nextId++;

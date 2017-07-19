@@ -11,6 +11,7 @@ import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Map;
 
 public class GameService extends Service
 {
@@ -32,6 +33,16 @@ public class GameService extends Service
         public String key;
     }
 
+    public interface ListPlayerRecordsCallback
+    {
+        void result(Status status, ArrayList<PlayerRecord> records);
+    }
+
+    public interface ListMultiplePlayersRecordsCallback
+    {
+        void result(Status status, Map<String, ArrayList<PlayerRecord>> records);
+    }
+
     public interface JoinGameMultiCallback
     {
         void success(String roomId,
@@ -48,6 +59,63 @@ public class GameService extends Service
         {
             this.accessToken = accessToken;
             this.ip = ip;
+        }
+    }
+
+    public class PlayerRecord
+    {
+        private String roomId;
+        private JSONObject roomSettings;
+        private int players;
+        private int playersMax;
+        private String gameName;
+        private String gameVersion;
+        private String gameServer;
+
+        public PlayerRecord(JSONObject data)
+        {
+            this.roomId = data.optString("id");
+            this.roomSettings = data.optJSONObject("settings");
+            this.players = data.optInt("players", 0);
+            this.playersMax = data.optInt("max_players", 1);
+            this.gameName = data.optString("game_name");
+            this.gameVersion = data.optString("game_version");
+            this.gameServer = data.optString("game_server");
+        }
+
+        public String getRoomId()
+        {
+            return roomId;
+        }
+
+        public JSONObject getRoomSettings()
+        {
+            return roomSettings;
+        }
+
+        public int getPlayers()
+        {
+            return players;
+        }
+
+        public int getPlayersMax()
+        {
+            return playersMax;
+        }
+
+        public String getGameName()
+        {
+            return gameName;
+        }
+
+        public String getGameVersion()
+        {
+            return gameVersion;
+        }
+
+        public String getGameServer()
+        {
+            return gameServer;
         }
     }
 
@@ -655,5 +723,102 @@ public class GameService extends Service
         jsonRequest.setToken(accessToken);
         jsonRequest.post(fields);
 
+    }
+
+    public void listAccountRecords(String accountId,
+                                   AccessToken accessToken,
+                                   final ListPlayerRecordsCallback callback)
+    {
+        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(),
+                getLocation() + "/player/" + accountId,
+                new Request.RequestResult()
+                {
+                    @Override
+                    public void complete(Request request, Status status)
+                    {
+                        if (status == Status.success)
+                        {
+                            JSONObject response = ((JsonRequest) request).getObject();
+
+                            JSONArray records = response.getJSONArray("records");
+
+                            ArrayList<PlayerRecord> recordsResult = new ArrayList<PlayerRecord>();
+
+                            for (int i = 0; i < records.length(); i++)
+                            {
+                                JSONObject record = records.getJSONObject(i);
+                                recordsResult.add(new PlayerRecord(record));
+                            }
+
+                            callback.result(status, recordsResult);
+                        }
+                        else
+                        {
+                            callback.result(status, null);
+                        }
+                    }
+                });
+
+        jsonRequest.setToken(accessToken);
+        jsonRequest.get();
+    }
+
+    public void listMultipleAccountsRecords(ArrayList<String> accountIds,
+                                            AccessToken accessToken,
+                                            final ListMultiplePlayersRecordsCallback callback)
+    {
+        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(),
+            getLocation() + "/players",
+        new Request.RequestResult()
+        {
+            @Override
+            public void complete(Request request, Status status)
+            {
+                if (status == Status.success)
+                {
+                    JSONObject response = ((JsonRequest) request).getObject();
+
+                    JSONObject records = response.optJSONObject("records");
+                    HashMap<String, ArrayList<PlayerRecord>> result = new HashMap<String, ArrayList<PlayerRecord>>();
+
+                    for (Object o : records.keySet())
+                    {
+                        String accountId = o.toString();
+                        JSONArray accountRecords = records.optJSONArray(accountId);
+
+                        ArrayList<PlayerRecord> accountRecordsResult = new ArrayList<PlayerRecord>();
+
+                        for (int i = 0; i < accountRecords.length(); i++)
+                        {
+                            JSONObject record = accountRecords.getJSONObject(i);
+                            accountRecordsResult.add(new PlayerRecord(record));
+                        }
+
+                        result.put(accountId, accountRecordsResult);
+                    }
+
+                    callback.result(status, result);
+                }
+                else
+                {
+                    callback.result(status, null);
+                }
+            }
+        });
+
+        HashMap<String, String> fields = new HashMap<String, String>();
+
+        JSONArray accounts = new JSONArray();
+
+        for (String id : accountIds)
+        {
+            accounts.put(id);
+        }
+
+        fields.put("accounts", accounts.toString());
+        jsonRequest.setQueryArguments(fields);
+
+        jsonRequest.setToken(accessToken);
+        jsonRequest.get();
     }
 }

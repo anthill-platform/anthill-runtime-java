@@ -107,6 +107,24 @@ public class OnlineLib
                 return new StoreService(lib, serviceLocation);
             }
         });
+
+        generators.put(SocialService.ID, new ServiceGen()
+        {
+            @Override
+            public Service newService(OnlineLib lib, String serviceLocation)
+            {
+                return new SocialService(lib, serviceLocation);
+            }
+        });
+
+        generators.put(StaticService.ID, new ServiceGen()
+        {
+            @Override
+            public Service newService(OnlineLib lib, String serviceLocation)
+            {
+                return new StaticService(lib, serviceLocation);
+            }
+        });
     }
 
     public static ServiceGen getGenerator(String serviceId)
@@ -226,12 +244,14 @@ public class OnlineLib
         return environmentVariables;
     }
 
+    @SuppressWarnings("WeakerAccess")
     public void setEnvironmentInfo(String discoveryService, String environmentName)
     {
-        initDiscovery(discoveryService, environmentName);
+        externallyInitDiscovery(discoveryService, environmentName);
     }
 
-    private void initDiscovery(String discoveryService, String environmentName)
+    @SuppressWarnings("WeakerAccess")
+    public void externallyInitDiscovery(String discoveryService, String environmentName)
     {
         this.initialized = true;
 

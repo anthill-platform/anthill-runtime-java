@@ -2,6 +2,7 @@ package org.anthillplatform.onlinelib.util;
 
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.drafts.Draft_17;
+import org.json.JSONObject;
 
 import java.net.URI;
 
@@ -35,6 +36,26 @@ public abstract class WebSocketJsonRPC extends WebSocketClient
     public void onMessage(String message)
     {
         rpc.received(message);
+    }
+
+    public void request(String method, JsonRPC.ResponseHandler responseHandler, JSONObject params)
+    {
+        rpc.request(method, responseHandler, params);
+    }
+
+    public void request(String method, JsonRPC.ResponseHandler responseHandler, Object... params)
+    {
+        rpc.request(method, responseHandler, params);
+    }
+
+    public void rpc(String method, JSONObject params)
+    {
+        rpc.rpc(method, params);
+    }
+
+    public void rpc(String method, Object... params)
+    {
+        rpc.rpc(method, params);
     }
 
     public void addHandler(String method, JsonRPC.MethodHandler handler)

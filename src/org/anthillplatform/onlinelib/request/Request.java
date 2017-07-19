@@ -1,5 +1,6 @@
 package org.anthillplatform.onlinelib.request;
 
+import com.mashape.unirest.http.HttpMethod;
 import org.anthillplatform.onlinelib.Status;
 import org.anthillplatform.onlinelib.entity.AccessToken;
 import org.anthillplatform.onlinelib.services.LoginService;
@@ -11,7 +12,9 @@ import com.mashape.unirest.http.exceptions.UnirestException;
 import com.mashape.unirest.request.GetRequest;
 import com.mashape.unirest.request.HttpRequest;
 import com.mashape.unirest.request.HttpRequestWithBody;
+import org.anthillplatform.onlinelib.util.InputStreamRequest;
 
+import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -25,6 +28,7 @@ public abstract class Request
     private String responseContentType;
     private AccessToken workingAccessToken;
     private Headers responseHeaders;
+    private InputStream putStream;
 
     public void setToken(AccessToken workingAccessToken)
     {
@@ -47,7 +51,9 @@ public abstract class Request
     public enum RequestMethod
     {
         get,
-        post
+        post,
+        put,
+        delete
     }
 
     public interface RequestResult
@@ -92,6 +98,28 @@ public abstract class Request
                 }
 
                 request = post;
+
+                break;
+            }
+            case delete:
+            {
+                HttpRequestWithBody delete = Unirest.delete(this.location);
+
+                if (postFields != null && !postFields.isEmpty())
+                {
+                    delete.fields(postFields);
+                }
+
+                request = delete;
+
+                break;
+            }
+            case put:
+            {
+                InputStreamRequest put = new InputStreamRequest(
+                    HttpMethod.PUT, this.location, this.putStream);
+
+                request = put;
 
                 break;
             }
@@ -140,6 +168,11 @@ public abstract class Request
                     case 404:
                     {
                         complete(Status.notFound);
+                        break;
+                    }
+                    case 410:
+                    {
+                        complete(Status.gone);
                         break;
                     }
                     case 400:
@@ -214,6 +247,11 @@ public abstract class Request
         });
     }
 
+    public void post()
+    {
+        post(null);
+    }
+
     public void post(Map<String, Object> fields)
     {
         if (this.postFields == null)
@@ -227,6 +265,32 @@ public abstract class Request
         }
 
         init(RequestMethod.post);
+
+        start();
+    }
+
+    public void delete(Map<String, Object> fields)
+    {
+        if (this.postFields == null)
+        {
+            this.postFields = fields;
+        }
+        else
+        {
+            if (fields != null)
+                this.postFields.putAll(fields);
+        }
+
+        init(RequestMethod.delete);
+
+        start();
+    }
+
+    public void put(InputStream inputStream)
+    {
+        this.putStream = inputStream;
+
+        init(RequestMethod.put);
 
         start();
     }

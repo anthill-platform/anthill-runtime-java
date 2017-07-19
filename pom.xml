@@ -8,15 +8,15 @@
 	</parent>
 
 	<groupId>com.github.anthill-services</groupId>
-	<artifactId>runtime-java</artifactId>
+	<artifactId>anthill-runtime-java</artifactId>
 	<packaging>jar</packaging>
-	<version>0.1</version>
+	<version>0.1.1</version>
 
 	<name>OnlileLib</name>
 	<description>Java Runtime for Anthill services</description>
-	<url>https://github.com/anthill-services/runtime-java</url>
+	<url>https://github.com/anthill-services/anthill-runtime-java</url>
 	<issueManagement>
-		<url>https://github.com/anthill-services/runtime-java/issues</url>
+		<url>https://github.com/anthill-services/anthill-runtime-java/issues</url>
 	</issueManagement>
 
 	<licenses>
@@ -42,8 +42,8 @@
 	</repositories>
 
 	<scm>
-		<connection>scm:git:https://github.com/anthill-services/runtime-java.git</connection>
-		<developerConnection>scm:git:https://github.com/anthill-services/runtime-java.git</developerConnection>
+		<connection>scm:git:https://github.com/anthill-services/anthill-runtime-java.git</connection>
+		<developerConnection>scm:git:https://github.com/anthill-services/anthill-runtime-java.git</developerConnection>
 		<url>https://github.com/anthill-services/runtime-java</url>
 	</scm>
 

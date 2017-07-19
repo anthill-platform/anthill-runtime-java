@@ -128,4 +128,10 @@ public class AccessToken
     {
         return valid;
     }
+
+    @Override
+    public String toString()
+    {
+        return this.token;
+    }
 }
