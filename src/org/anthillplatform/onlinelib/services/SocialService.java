@@ -45,6 +45,11 @@ public class SocialService extends Service
         void complete(JSONObject updatedProfile, Status status);
     }
 
+    public interface GroupBatchUpdateCallback
+    {
+        void complete(Map<String, JSONObject> updatedProfiles, Status status);
+    }
+
     public interface GroupUpdateParticipantCallback
     {
         void complete(JSONObject updatedProfile, Status status);
@@ -140,7 +145,7 @@ public class SocialService extends Service
                     for (int i = 0, l = p.length(); i < l; i++)
                     {
                         String permission = p.optString(i);
-                        if (permission == null)
+                        if (permission == null || permission.isEmpty())
                             continue;
                         this.permissions.add(permission);
                     }
@@ -427,6 +432,69 @@ public class SocialService extends Service
         jsonRequest.post(_options);
     }
 
+    public void updateGroupBatchProfiles(
+        Map<String, JSONObject> profiles, boolean merge,
+        AccessToken accessToken, final GroupBatchUpdateCallback callback)
+    {
+        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(), getLocation() + "/groups/profiles",
+            new Request.RequestResult()
+        {
+            @Override
+            public void complete(Request request, Status status)
+            {
+                if (status == Status.success)
+                {
+                    JSONObject response = ((JsonRequest) request).getObject();
+
+                    JSONObject groups = response.optJSONObject("groups");
+                    if (groups != null)
+                    {
+                        Map<String, JSONObject> profiles = new HashMap<String, JSONObject>();
+
+                        for (Object o : groups.keySet())
+                        {
+                            String groupId = o.toString();
+
+                            JSONObject group = groups.optJSONObject(groupId);
+                            if (group == null)
+                                continue;
+
+                            JSONObject profile = group.optJSONObject("profile");
+                            if (profile == null)
+                                continue;
+
+                            profiles.put(groupId, profile);
+                        }
+
+                        callback.complete(profiles, Status.success);
+                        return;
+                    }
+
+                    callback.complete(null, Status.success);
+                }
+                else
+                {
+                    callback.complete(null, status);
+                }
+            }
+        });
+
+        Map<String, Object> _options = new HashMap<String, Object>();
+
+        JSONObject _profiles = new JSONObject();
+
+        for (String groupId : profiles.keySet())
+        {
+            _profiles.put(groupId, profiles.get(groupId));
+        }
+
+        _options.put("profiles", _profiles.toString());
+        _options.put("merge", merge ? "true" : "false");
+        _options.put("access_token", accessToken.toString());
+
+        jsonRequest.post(_options);
+    }
+
     public void updateGroupSummary(
             String groupId,
             String name,
@@ -515,7 +583,7 @@ public class SocialService extends Service
 
     public void updateMyGroupParticipationPermissions(
             String groupId,
-            HashSet<String> permissions,
+            Set<String> permissions,
             int role,
             JSONObject notify,
             AccessToken accessToken, final GroupUpdateParticipantPermissionsCallback callback)
@@ -526,7 +594,7 @@ public class SocialService extends Service
     public void updateGroupParticipationPermissions(
             String groupId,
             String accountId,
-            HashSet<String> permissions,
+            Set<String> permissions,
             int role,
             JSONObject notify,
             AccessToken accessToken, final GroupUpdateParticipantPermissionsCallback callback)
@@ -800,7 +868,7 @@ public class SocialService extends Service
     }
 
     public void transferOwnership(String groupId,
-                                  String accountTransferTo,
+                                  String accountTransferTo, int myNewRole,
                                   JSONObject notify,
                                   AccessToken accessToken, final GroupJoinCallback callback)
     {
@@ -820,6 +888,7 @@ public class SocialService extends Service
             _options.put("notify", notify.toString());
 
         _options.put("account_transfer_to", accountTransferTo);
+        _options.put("my_role", String.valueOf(myNewRole));
         _options.put("access_token", accessToken.toString());
 
         jsonRequest.post(_options);
@@ -872,7 +941,7 @@ public class SocialService extends Service
     public void inviteToGroup(String groupId,
                               String accountId,
                               int role,
-                              HashSet<String> permissions,
+                              Set<String> permissions,
                               JSONObject notify,
                               AccessToken accessToken, final GroupInviteCallback callback)
     {
@@ -931,7 +1000,7 @@ public class SocialService extends Service
                             String accountId,
                             String key,
                             int role,
-                            HashSet<String> permissions,
+                            Set<String> permissions,
                             JSONObject notify,
                             AccessToken accessToken, final GroupJoinApproveCallback callback)
     {

@@ -157,6 +157,7 @@ public class MessageService extends Service
 
         private MessageSessionRPC jsonRPC;
         private Listener listener;
+        private final Set<String> messageTypes;
 
         private class MessageSessionRPC extends WebSocketJsonRPC
         {
@@ -190,9 +191,10 @@ public class MessageService extends Service
             }
         }
 
-        public MessageSession(Listener listener)
+        public MessageSession(Listener listener, Set<String> messageTypes)
         {
             this.listener = listener;
+            this.messageTypes = messageTypes;
         }
 
         public void close()
@@ -303,6 +305,17 @@ public class MessageService extends Service
             HashMap<String, String> args = new HashMap<String, String>();
             args.put("access_token", accessToken.getToken());
 
+            if (messageTypes != null)
+            {
+                JSONArray messageTypes_ = new JSONArray();
+                for (String messageType : messageTypes)
+                {
+                    messageTypes_.put(messageType);
+                }
+
+                args.put("message_types", messageTypes_.toString());
+            }
+
             URI uri;
 
             try
@@ -350,8 +363,9 @@ public class MessageService extends Service
             {
                 try
                 {
-                    jsonRPC = new MessageSessionRPC(new URI("wss", uri.getHost(), uri.getPath(),
-                        uri.getQuery(), uri.getFragment()));
+                    uri = new URI("wss", null, uri.getHost(), uri.getPort(), uri.getPath(),
+                        uri.getQuery(), uri.getFragment());
+                    jsonRPC = new MessageSessionRPC(uri);
 
                     SSLContext context = SSLContext.getInstance( "TLS" );
 
@@ -370,8 +384,9 @@ public class MessageService extends Service
             {
                 try
                 {
-                    jsonRPC = new MessageSessionRPC(new URI("ws", uri.getHost(), uri.getPath(),
-                        uri.getQuery(), uri.getFragment()));
+                    uri = new URI("ws", null, uri.getHost(), uri.getPort(), uri.getPath(),
+                        uri.getQuery(), uri.getFragment());
+                    jsonRPC = new MessageSessionRPC(uri);
                 }
                 catch (URISyntaxException e)
                 {
@@ -528,7 +543,12 @@ public class MessageService extends Service
 
     public MessageSession session(AccessToken accessToken, MessageSession.Listener listener)
     {
-        MessageSession session = new MessageSession(listener);
+        return session(accessToken, null, listener);
+    }
+
+    public MessageSession session(AccessToken accessToken, Set<String> messageTypes, MessageSession.Listener listener)
+    {
+        MessageSession session = new MessageSession(listener, messageTypes);
         session.open(this, accessToken);
         return session;
     }
@@ -563,9 +583,8 @@ public class MessageService extends Service
                     JSONObject response = ((JsonRequest) request).getObject();
 
                     JSONArray messages = response.optJSONArray("messages");
-                    JSONObject replyTo_ = response.optJSONObject("reply_to");
 
-                    if (messages == null || replyTo_ == null)
+                    if (messages == null)
                     {
                         callback.complete(null, Status.dataCorrupted);
                         return;
@@ -588,8 +607,7 @@ public class MessageService extends Service
                         }
                     }
 
-                    MessageDestination replyTo = new MessageDestination(replyTo_);
-                    callback.complete(replyTo, Status.success);
+                    callback.complete(null, Status.success);
                 }
                 else
                 {

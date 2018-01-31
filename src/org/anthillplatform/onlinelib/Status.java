@@ -17,5 +17,6 @@ public enum Status
     tooManyRequests,
     banned,
     serviceUnavailable,
-    gone
+    gone,
+    conflict
 }

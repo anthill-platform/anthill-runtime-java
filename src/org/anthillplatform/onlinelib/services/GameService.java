@@ -6,11 +6,20 @@ import org.anthillplatform.onlinelib.entity.AccessToken;
 import org.anthillplatform.onlinelib.entity.ApplicationInfo;
 import org.anthillplatform.onlinelib.request.JsonRequest;
 import org.anthillplatform.onlinelib.request.Request;
+import org.anthillplatform.onlinelib.util.JsonRPC;
+import org.anthillplatform.onlinelib.util.WebSocketJsonRPC;
+import org.java_websocket.handshake.ServerHandshake;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import javax.net.ssl.SSLContext;
+import java.io.UnsupportedEncodingException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class GameService extends Service
@@ -50,6 +59,21 @@ public class GameService extends Service
         void fail(Request request, Status status);
     }
 
+    public interface GetPartyCallback
+    {
+        void result(Status status, Party party);
+    }
+
+    public interface CreateEmptyPartyCallback
+    {
+        void result(Status status, Party party);
+    }
+
+    public interface DeletePartyCallback
+    {
+        void result(Status status);
+    }
+
     public static class JoinMultiWrapper
     {
         public AccessToken accessToken;
@@ -59,6 +83,484 @@ public class GameService extends Service
         {
             this.accessToken = accessToken;
             this.ip = ip;
+        }
+    }
+
+    public static class PartyMember
+    {
+        private String account;
+        private int role;
+        private JSONObject profile;
+
+        public PartyMember(JSONObject data)
+        {
+            this.account = data.optString("account");
+            this.role = data.optInt("role", 0);
+            this.profile = data.optJSONObject("profile");
+        }
+
+        public String getAccount()
+        {
+            return account;
+        }
+
+        public int getRole()
+        {
+            return role;
+        }
+
+        public JSONObject getProfile()
+        {
+            return profile;
+        }
+    }
+
+    public static class Party
+    {
+        private String id;
+        private int members;
+        private int maxMembers;
+        private JSONObject settings;
+
+        public Party(JSONObject data)
+        {
+            this.id = data.optString("id");
+            this.members = data.optInt("num_members", 0);
+            this.maxMembers = data.optInt("max_members", 8);
+            this.settings = data.optJSONObject("settings");
+        }
+
+        public String getId()
+        {
+            return id;
+        }
+
+        public int getMembers()
+        {
+            return members;
+        }
+
+        public int getMaxMembers()
+        {
+            return maxMembers;
+        }
+
+        public JSONObject getSettings()
+        {
+            return settings;
+        }
+    }
+
+    public static class PartySession
+    {
+        private PartySessionRPC jsonRPC;
+        private Listener listener;
+        private HashMap<String, InternalMessageHandler> internalHandlers;
+
+        private static final String MESSAGE_TYPE_PLAYER_JOINED = "player_joined";
+        private static final String MESSAGE_TYPE_PLAYER_LEFT = "player_left";
+        private static final String MESSAGE_TYPE_GAME_STARTING = "game_starting";
+        private static final String MESSAGE_TYPE_GAME_START_FAILED = "game_start_failed";
+        private static final String MESSAGE_TYPE_GAME_STARTED = "game_started";
+        private static final String MESSAGE_TYPE_CUSTOM = "custom";
+        private static final String MESSAGE_TYPE_PARTY_CLOSED = "party_closed";
+
+        public PartySession(Listener listener)
+        {
+            this.listener = listener;
+        }
+
+        private interface InternalMessageHandler
+        {
+            void onMessage(String messageType, JSONObject payload);
+        }
+
+        public interface Listener
+        {
+            void onError(int code, String message, String data);
+            void onError(Exception e);
+            void onOpen();
+            void onClose(int code, String message, boolean remote);
+            void onPartyInfoReceived(Party party, List<PartyMember> members);
+
+            void onPlayerJoined(PartyMember member);
+            void onPlayerLeft(PartyMember member);
+            void onGameStarting(JSONObject payload);
+            void onGameStartFailed(int code, String message);
+            void onGameStarted(String roomId, String slot, String key, String host, ArrayList<Integer> ports,
+                               JSONObject roomSettings);
+            void onPartyClosed(JSONObject payload);
+            void onCustomMessage(String messageType, JSONObject payload);
+        }
+
+        private class PartySessionRPC extends WebSocketJsonRPC
+        {
+            public PartySessionRPC(URI serverURI)
+            {
+                super(serverURI);
+            }
+
+            @Override
+            protected void onError(int code, String message, String data)
+            {
+                listener.onError(code, message, data);
+            }
+
+            @Override
+            public void onOpen(ServerHandshake serverHandshake)
+            {
+                listener.onOpen();
+            }
+
+            @Override
+            public void onClose(int i, String s, boolean b)
+            {
+                listener.onClose(i, s, b);
+            }
+
+            @Override
+            public void onError(Exception e)
+            {
+                listener.onError(e);
+            }
+        }
+
+        public void close()
+        {
+            jsonRPC.close();
+        }
+
+        public PartySessionRPC getRPC()
+        {
+            return jsonRPC;
+        }
+
+        public boolean isOpen()
+        {
+            return jsonRPC != null && jsonRPC.isOpen();
+        }
+
+        public boolean sendCustomMessage(JSONObject payload, JsonRPC.ResponseHandler callback)
+        {
+            if (!isOpen())
+                return false;
+
+            JSONObject args = new JSONObject();
+
+            args.put("payload", payload);
+            jsonRPC.request("send_message", callback, args);
+
+            return true;
+        }
+
+        public boolean closeParty(JSONObject message, JsonRPC.ResponseHandler callback)
+        {
+            if (!isOpen())
+                return false;
+
+            JSONObject args = new JSONObject();
+
+            args.put("message", message);
+            jsonRPC.request("close_party", callback, args);
+
+            return true;
+        }
+
+        public boolean join(JSONObject memberProfile, JsonRPC.ResponseHandler callback)
+        {
+            return join(memberProfile, null, callback);
+        }
+
+        public boolean join(JSONObject memberProfile, JSONObject checkMembers, JsonRPC.ResponseHandler callback)
+        {
+            if (!isOpen())
+                return false;
+
+            JSONObject args = new JSONObject();
+
+            args.put("member_profile", memberProfile);
+
+            if (checkMembers != null)
+                args.put("check_members", checkMembers);
+
+            jsonRPC.request("join_party", callback, args);
+
+            return true;
+        }
+
+        public boolean leave(JsonRPC.ResponseHandler callback)
+        {
+            if (!isOpen())
+                return false;
+
+            JSONObject args = new JSONObject();
+
+            jsonRPC.request("leave_party", callback, args);
+
+            return true;
+        }
+
+        public boolean startGame(JSONObject message, JsonRPC.ResponseHandler callback)
+        {
+            if (!isOpen())
+                return false;
+
+            JSONObject args = new JSONObject();
+
+            args.put("message", message);
+            jsonRPC.request("start_game", callback, args);
+
+            return true;
+        }
+
+        public void open(String location, HashMap<String, String> args)
+        {
+            URI uri;
+
+            try
+            {
+                StringBuilder queryString = new StringBuilder();
+
+                queryString.append(location);
+
+                boolean first = true;
+
+                for (Map.Entry<String, String> entry : args.entrySet())
+                {
+                    if (first)
+                    {
+                        queryString.append("?");
+                        first = false;
+                    }
+                    else
+                    {
+                        queryString.append("&");
+                    }
+
+                    try {
+                        queryString
+                                .append(URLEncoder.encode(entry.getKey(), "UTF-8"))
+                                .append("=")
+                                .append(URLEncoder.encode((entry.getValue() == null) ? "" :
+                                        entry.getValue(), "UTF-8"));
+
+                    } catch (UnsupportedEncodingException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+
+                uri = new URI(queryString.toString());
+            }
+            catch (URISyntaxException e)
+            {
+                e.printStackTrace();
+                listener.onError(e);
+                return;
+            }
+
+            if (uri.getScheme().equals("https"))
+            {
+                try
+                {
+                    uri = new URI("wss", null, uri.getHost(), uri.getPort(), uri.getPath(),
+                        uri.getQuery(), uri.getFragment());
+                    jsonRPC = new PartySessionRPC(uri);
+
+                    SSLContext context = SSLContext.getInstance( "TLS" );
+
+                    context.init(null, null, null);
+
+                    jsonRPC.setSocket(context.getSocketFactory().createSocket());
+                }
+                catch (Exception e)
+                {
+                    e.printStackTrace();
+                    listener.onError(e);
+                    return;
+                }
+            }
+            else
+            {
+                try
+                {
+                    uri = new URI("ws", null, uri.getHost(), uri.getPort(), uri.getPath(),
+                        uri.getQuery(), uri.getFragment());
+                    jsonRPC = new PartySessionRPC(uri);
+                }
+                catch (URISyntaxException e)
+                {
+                    e.printStackTrace();
+                    listener.onError(e);
+                    return;
+                }
+            }
+
+            init();
+
+            jsonRPC.connect();
+        }
+
+        private void init()
+        {
+            internalHandlers = new HashMap<String, InternalMessageHandler>();
+
+            internalHandlers.put(MESSAGE_TYPE_PLAYER_JOINED, new InternalMessageHandler()
+            {
+                @Override
+                public void onMessage(String messageType, JSONObject payload)
+                {
+                    listener.onPlayerJoined(new PartyMember(payload));
+                }
+            });
+
+            internalHandlers.put(MESSAGE_TYPE_PLAYER_LEFT, new InternalMessageHandler()
+            {
+                @Override
+                public void onMessage(String messageType, JSONObject payload)
+                {
+                    listener.onPlayerLeft(new PartyMember(payload));
+                }
+            });
+
+            internalHandlers.put(MESSAGE_TYPE_GAME_STARTING, new InternalMessageHandler()
+            {
+                @Override
+                public void onMessage(String messageType, JSONObject payload)
+                {
+                    listener.onGameStarting(payload);
+                }
+            });
+
+            internalHandlers.put(MESSAGE_TYPE_GAME_START_FAILED, new InternalMessageHandler()
+            {
+                @Override
+                public void onMessage(String messageType, JSONObject payload)
+                {
+                    listener.onGameStartFailed(payload.optInt("code", 500),
+                        payload.optString("reason", "error"));
+                }
+            });
+
+            internalHandlers.put(MESSAGE_TYPE_PARTY_CLOSED, new InternalMessageHandler()
+            {
+                @Override
+                public void onMessage(String messageType, JSONObject payload)
+                {
+                    listener.onPartyClosed(payload);
+                }
+            });
+
+            internalHandlers.put(MESSAGE_TYPE_CUSTOM, new InternalMessageHandler()
+            {
+                @Override
+                public void onMessage(String messageType, JSONObject payload)
+                {
+                    listener.onCustomMessage(messageType, payload);
+                }
+            });
+
+            internalHandlers.put(MESSAGE_TYPE_GAME_STARTED, new InternalMessageHandler()
+            {
+                @Override
+                public void onMessage(String messageType, JSONObject payload)
+                {
+                    String roomId = payload.optString("id");
+                    String slot = payload.optString("slot");
+                    String key = payload.optString("key");
+
+                    JSONObject location = payload.optJSONObject("location");
+                    JSONObject roomSettings = payload.optJSONObject("settings");
+
+                    if (roomId == null || key == null || location == null || roomSettings == null)
+                    {
+                        listener.onError(500, "Bad " + MESSAGE_TYPE_GAME_STARTED + " message received", "");
+                        return;
+                    }
+
+                    String host = location.optString("host");
+                    JSONArray ports = location.optJSONArray("ports");
+
+                    ArrayList<Integer> _ports = new ArrayList<Integer>();
+
+                    for (int i = 0, t = ports.length(); i < t; i++)
+                    {
+                        int port = ports.optInt(i, 0);
+                        _ports.add(port);
+                    }
+
+                    listener.onGameStarted(roomId, slot, key, host, _ports, roomSettings);
+                }
+            });
+
+            jsonRPC.addHandler("message", new JsonRPC.MethodHandler()
+            {
+                @Override
+                public Object called(Object params) throws JsonRPC.JsonRPCException
+                {
+                    JSONObject args = ((JSONObject) params);
+
+                    String messageType = args.optString("message_type");
+                    JSONObject payload = args.optJSONObject("payload");
+
+                    if (messageType == null || payload == null)
+                    {
+                        listener.onError(500, "Corrupted message received", args.toString());
+                        return false;
+                    }
+
+                    InternalMessageHandler internalHandler = internalHandlers.get(messageType);
+
+                    if (internalHandler == null)
+                    {
+                        listener.onError(500, "Unkonwn message type received", messageType);
+                        return false;
+                    }
+
+                    internalHandler.onMessage(messageType, payload);
+
+                    return null;
+                }
+            });
+
+            jsonRPC.addHandler("party", new JsonRPC.MethodHandler()
+            {
+                @Override
+                public Object called(Object params) throws JsonRPC.JsonRPCException
+                {
+                    JSONObject args = ((JSONObject) params);
+                    JSONObject partyInfo = args.optJSONObject("party_info");
+
+                    if (partyInfo == null)
+                    {
+                        listener.onError(500, "Bad data", "No party info argument");
+                        return null;
+                    }
+
+                    JSONObject partyItself = partyInfo.optJSONObject("party");
+                    JSONArray members = partyInfo.optJSONArray("members");
+
+                    if (partyItself == null || members == null)
+                    {
+                        listener.onError(500, "Bad data", "No party/members argument");
+                        return null;
+                    }
+
+                    ArrayList<PartyMember> members_ = new ArrayList<PartyMember>();
+
+                    for (int i = 0, t = members.length(); i < t; i++)
+                    {
+                        JSONObject member_ = members.optJSONObject(i);
+                        if (member_ == null)
+                            continue;
+
+                        members_.add(new PartyMember(member_));
+                    }
+
+                    listener.onPartyInfoReceived(new Party(partyItself), members_);
+
+                    return null;
+                }
+            });
         }
     }
 
@@ -820,5 +1322,205 @@ public class GameService extends Service
 
         jsonRequest.setToken(accessToken);
         jsonRequest.get();
+    }
+
+    public void createParty(
+        String gameServerName, JSONObject partySettings, JSONObject roomSettings, JSONObject roomFilters,
+        int maxMembers, String region, boolean autoStart, boolean autoClose, String closeCallback,
+        AccessToken accessToken, final CreateEmptyPartyCallback callback)
+    {
+        ApplicationInfo applicationInfo = getOnlineLib().getApplicationInfo();
+
+        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(),
+            getLocation() + "/party/create/" +
+            applicationInfo.getGameId() + "/" + applicationInfo.getGameVersion() + "/" + gameServerName,
+            new Request.RequestResult()
+        {
+            @Override
+            public void complete(Request request, Status status)
+            {
+                if (status == Status.success)
+                {
+                    JSONObject response = ((JsonRequest) request).getObject();
+                    JSONObject party_ = response.optJSONObject("party");
+                    Party party;
+
+                    if (party_ != null)
+                    {
+                        party = new Party(party_);
+                    }
+                    else
+                    {
+                        party = null;
+                    }
+
+                    callback.result(status, party);
+                }
+                else
+                {
+                    callback.result(status, null);
+                }
+            }
+        });
+
+        HashMap<String, Object> args = new HashMap<String, Object>();
+        args.put("max_members", String.valueOf(maxMembers));
+        args.put("auto_start", autoStart ? "true" : "false");
+        args.put("auto_close", autoClose ? "true" : "false");
+
+        if (region != null)
+            args.put("region", region);
+        if (partySettings != null)
+            args.put("party_settings", partySettings.toString());
+        if (roomSettings != null)
+            args.put("room_settings", roomSettings.toString());
+        if (roomFilters != null)
+            args.put("room_filters", roomFilters.toString());
+        if (closeCallback != null)
+            args.put("close_callback", closeCallback);
+
+        jsonRequest.setToken(accessToken);
+        jsonRequest.post(args);
+
+    }
+
+    public void closeParty(String partyId, JSONObject message,
+                           AccessToken accessToken, final DeletePartyCallback callback)
+    {
+        ApplicationInfo applicationInfo = getOnlineLib().getApplicationInfo();
+
+        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(),
+            getLocation() + "/party/" + partyId,
+            new Request.RequestResult()
+        {
+            @Override
+            public void complete(Request request, Status status)
+            {
+                callback.result(status);
+            }
+        });
+
+        HashMap<String, Object> args = new HashMap<String, Object>();
+        args.put("message", message.toString());
+
+        jsonRequest.setToken(accessToken);
+        jsonRequest.delete(args);
+    }
+
+    public void getParty(String partyId,
+                         AccessToken accessToken, final GetPartyCallback callback)
+    {
+        ApplicationInfo applicationInfo = getOnlineLib().getApplicationInfo();
+
+        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(),
+            getLocation() + "/party/" + partyId,
+            new Request.RequestResult()
+        {
+            @Override
+            public void complete(Request request, Status status)
+            {
+                if (status == Status.success)
+                {
+                    JSONObject response = ((JsonRequest) request).getObject();
+                    JSONObject party_ = response.optJSONObject("party");
+                    Party party;
+
+                    if (party_ != null)
+                    {
+                        party = new Party(party_);
+                    }
+                    else
+                    {
+                        party = null;
+                    }
+
+                    callback.result(status, party);
+                }
+                else
+                {
+                    callback.result(status, null);
+                }
+            }
+        });
+
+        jsonRequest.setToken(accessToken);
+        jsonRequest.get();
+    }
+
+    public PartySession openNewPartySession(
+        String gameServerName, AccessToken accessToken, PartySession.Listener listener)
+    {
+        return openNewPartySession(gameServerName, null, null, null, null, 8, null, null,
+            true, true, true, accessToken, listener);
+    }
+
+    public PartySession openNewPartySession(
+            String gameServerName, JSONObject partySettings, JSONObject roomSettings, JSONObject roomFilters,
+            JSONObject memberProfile, int maxMembers, String region,
+            String closeCallback, boolean autoJoin, boolean autoStart, boolean autoClose,
+            AccessToken accessToken, PartySession.Listener listener)
+    {
+        ApplicationInfo applicationInfo = getOnlineLib().getApplicationInfo();
+
+        HashMap<String, String> args = new HashMap<String, String>();
+
+        args.put("max_members", String.valueOf(maxMembers));
+        args.put("auto_join", autoJoin ? "true" : "false");
+        args.put("auto_start", autoStart ? "true" : "false");
+        args.put("auto_close", autoClose ? "true" : "false");
+
+        if (region != null)
+            args.put("region", region);
+        if (partySettings != null)
+            args.put("party_settings", partySettings.toString());
+        if (roomSettings != null)
+            args.put("room_settings", roomSettings.toString());
+        if (roomFilters != null)
+            args.put("room_filters", roomFilters.toString());
+        if (memberProfile != null && autoJoin)
+            args.put("member_profile", memberProfile.toString());
+        if (closeCallback != null)
+            args.put("close_callback", closeCallback);
+
+        args.put("access_token", accessToken.getToken());
+
+        PartySession partySession = new PartySession(listener);
+        partySession.open(
+            getLocation() + "/party/create/" +
+            applicationInfo.getGameId() + "/" + applicationInfo.getGameVersion() + "/" + gameServerName + "/session",
+            args);
+
+        return partySession;
+    }
+
+    public PartySession openExistingPartySession(
+        String partyId, AccessToken accessToken, PartySession.Listener listener)
+    {
+        return openExistingPartySession(partyId, null, null, true, accessToken, listener);
+    }
+
+    public PartySession openExistingPartySession(
+        String partyId, JSONObject memberProfile, JSONObject checkMembers,
+        boolean autoJoin,
+        AccessToken accessToken, PartySession.Listener listener)
+    {
+        ApplicationInfo applicationInfo = getOnlineLib().getApplicationInfo();
+
+        HashMap<String, String> args = new HashMap<String, String>();
+
+        if (memberProfile != null && autoJoin)
+            args.put("member_profile", memberProfile.toString());
+        if (checkMembers != null)
+            args.put("check_members", checkMembers.toString());
+
+        args.put("auto_join", autoJoin ? "true" : "false");
+        args.put("access_token", accessToken.getToken());
+
+        PartySession partySession = new PartySession(listener);
+        partySession.open(
+            getLocation() + "/party/" + partyId + "/session",
+            args);
+
+        return partySession;
     }
 }

@@ -190,6 +190,11 @@ public abstract class Request
                         complete(Status.forbidden);
                         break;
                     }
+                    case 409:
+                    {
+                        complete(Status.conflict);
+                        break;
+                    }
                     case 423:
                     {
                         complete(Status.banned);
