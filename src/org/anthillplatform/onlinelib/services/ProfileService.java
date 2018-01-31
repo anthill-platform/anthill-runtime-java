@@ -14,6 +14,7 @@ import java.util.Map;
 public class ProfileService extends Service
 {
     public static final String ID = "profile";
+    public static final String API_VERSION = "0.2";
 
     private static ProfileService instance;
     public static ProfileService get() { return instance; }
@@ -44,7 +45,7 @@ public class ProfileService extends Service
 
     public ProfileService(OnlineLib onlineLib, String location)
     {
-        super(onlineLib, location, ID);
+        super(onlineLib, location, ID, API_VERSION);
 
         set(this);
 
@@ -85,6 +86,7 @@ public class ProfileService extends Service
             }
         });
 
+        jsonRequest.setAPIVersion(getAPIVersion());
         jsonRequest.setToken(accessToken);
         jsonRequest.get();
     }

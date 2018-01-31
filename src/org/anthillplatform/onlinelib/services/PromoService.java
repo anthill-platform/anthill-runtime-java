@@ -10,6 +10,7 @@ import org.json.JSONObject;
 public class PromoService extends Service
 {
     public static final String ID = "promo";
+    public static final String API_VERSION = "0.2";
 
     private static PromoService instance;
     public static PromoService get() { return instance; }
@@ -17,7 +18,7 @@ public class PromoService extends Service
 
     public PromoService(OnlineLib onlineLib, String location)
     {
-        super(onlineLib, location, ID);
+        super(onlineLib, location, ID, API_VERSION);
 
         set(this);
     }
@@ -45,6 +46,7 @@ public class PromoService extends Service
             }
         });
 
+        jsonRequest.setAPIVersion(getAPIVersion());
         jsonRequest.setToken(accessToken);
         jsonRequest.post(null);
     }

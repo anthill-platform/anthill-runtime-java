@@ -14,6 +14,7 @@ import java.util.Map;
 public class OnlineLib
 {
     private static OnlineLib instance;
+
     public static OnlineLib get() { return instance; }
     private static void set(OnlineLib service) { instance = service; }
 
@@ -22,6 +23,7 @@ public class OnlineLib
     private ApplicationInfo applicationInfo;
     private boolean initialized;
     private DiscoveryService discoveryService;
+    private final String APIVersion;
 
     private static Map<String, ServiceGen> generators = new HashMap<String, ServiceGen>();
 
@@ -152,7 +154,7 @@ public class OnlineLib
         void complete(OnlineLib lib, Status status);
     }
 
-    public OnlineLib(ApplicationInfo applicationInfo)
+    public OnlineLib(ApplicationInfo applicationInfo, String APIVersion)
     {
         set(this);
 
@@ -164,6 +166,7 @@ public class OnlineLib
 
         this.discoveryService = new DiscoveryService(this);
         this.initialized = false;
+        this.APIVersion = APIVersion;
     }
 
     public void init(Callback complete)
@@ -218,6 +221,8 @@ public class OnlineLib
                 }
             }
         });
+
+        request.setAPIVersion(APIVersion);
 
         request.get();
     }

@@ -14,6 +14,7 @@ import java.util.Map;
 public class LoginService extends Service
 {
     public static final String ID = "login";
+    public static final String API_VERSION = "0.2";
 
     private static LoginService instance;
     public static LoginService get() { return instance; }
@@ -35,7 +36,7 @@ public class LoginService extends Service
 
     public LoginService(OnlineLib onlineLib, String location)
     {
-        super(onlineLib, location, ID);
+        super(onlineLib, location, ID, API_VERSION);
 
         set(this);
 
@@ -77,6 +78,7 @@ public class LoginService extends Service
 
         data.putAll(options);
 
+        request.setAPIVersion(getAPIVersion());
         request.post(data);
     }
 
@@ -105,6 +107,7 @@ public class LoginService extends Service
         data.put("extend", extend.getToken());
         data.put("scopes", scopes);
 
+        request.setAPIVersion(getAPIVersion());
         request.post(data);
     }
 
@@ -209,6 +212,7 @@ public class LoginService extends Service
             _options.putAll(options);
         }
 
+        request.setAPIVersion(getAPIVersion());
         request.post(_options);
     }
 

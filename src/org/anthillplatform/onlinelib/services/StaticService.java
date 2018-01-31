@@ -14,6 +14,7 @@ import java.util.Map;
 public class StaticService extends Service
 {
     public static final String ID = "static";
+    public static final String API_VERSION = "0.2";
 
     private static StaticService instance;
     public static StaticService get() { return instance; }
@@ -21,7 +22,7 @@ public class StaticService extends Service
 
     public StaticService(OnlineLib onlineLib, String location)
     {
-        super(onlineLib, location, ID);
+        super(onlineLib, location, ID, API_VERSION);
 
         set(this);
     }
@@ -55,6 +56,7 @@ public class StaticService extends Service
         Map<String, String> query = new HashMap<String, String>();
         query.put("filename", fileName);
 
+        jsonRequest.setAPIVersion(getAPIVersion());
         jsonRequest.setQueryArguments(query);
         jsonRequest.setToken(accessToken);
         jsonRequest.put(file);

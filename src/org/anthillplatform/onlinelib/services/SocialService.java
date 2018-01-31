@@ -13,6 +13,7 @@ import java.util.*;
 public class SocialService extends Service
 {
     public static final String ID = "social";
+    public static final String API_VERSION = "0.2";
 
     private static SocialService instance;
     public static SocialService get() { return instance; }
@@ -20,7 +21,7 @@ public class SocialService extends Service
 
     public SocialService(OnlineLib onlineLib, String location)
     {
-        super(onlineLib, location, ID);
+        super(onlineLib, location, ID, API_VERSION);
 
         set(this);
     }
@@ -292,6 +293,7 @@ public class SocialService extends Service
             }
         });
 
+        jsonRequest.setAPIVersion(getAPIVersion());
         jsonRequest.setToken(accessToken);
         jsonRequest.get();
     }
@@ -329,6 +331,7 @@ public class SocialService extends Service
             }
         });
 
+        jsonRequest.setAPIVersion(getAPIVersion());
         jsonRequest.setToken(accessToken);
         jsonRequest.get();
     }
@@ -373,6 +376,7 @@ public class SocialService extends Service
             }
         });
 
+        jsonRequest.setAPIVersion(getAPIVersion());
         jsonRequest.setToken(accessToken);
         jsonRequest.get();
     }
@@ -429,6 +433,7 @@ public class SocialService extends Service
             _options.put("notify", notify.toString());
         _options.put("access_token", accessToken.toString());
 
+        jsonRequest.setAPIVersion(getAPIVersion());
         jsonRequest.post(_options);
     }
 
@@ -492,6 +497,7 @@ public class SocialService extends Service
         _options.put("merge", merge ? "true" : "false");
         _options.put("access_token", accessToken.toString());
 
+        jsonRequest.setAPIVersion(getAPIVersion());
         jsonRequest.post(_options);
     }
 
@@ -522,6 +528,7 @@ public class SocialService extends Service
             _options.put("notify", notify.toString());
         _options.put("access_token", accessToken.toString());
 
+        jsonRequest.setAPIVersion(getAPIVersion());
         jsonRequest.post(_options);
     }
 
@@ -578,6 +585,7 @@ public class SocialService extends Service
             _options.put("notify", notify.toString());
         _options.put("access_token", accessToken.toString());
 
+        jsonRequest.setAPIVersion(getAPIVersion());
         jsonRequest.post(_options);
     }
 
@@ -623,6 +631,7 @@ public class SocialService extends Service
             _options.put("notify", notify.toString());
         _options.put("access_token", accessToken.toString());
 
+        jsonRequest.setAPIVersion(getAPIVersion());
         jsonRequest.post(_options);
     }
 
@@ -671,6 +680,7 @@ public class SocialService extends Service
         _options.put("max_members", String.valueOf(maxMembers));
         _options.put("access_token", accessToken.toString());
 
+        jsonRequest.setAPIVersion(getAPIVersion());
         jsonRequest.post(_options);
     }
 
@@ -718,6 +728,7 @@ public class SocialService extends Service
         Map<String, String> arguments = new HashMap<String, String>();
         arguments.put("query", query);
 
+        jsonRequest.setAPIVersion(getAPIVersion());
         jsonRequest.setQueryArguments(arguments);
         jsonRequest.setToken(accessToken);
         jsonRequest.get();
@@ -752,6 +763,7 @@ public class SocialService extends Service
             _options.put("notify", notify.toString());
         _options.put("access_token", accessToken.toString());
 
+        jsonRequest.setAPIVersion(getAPIVersion());
         jsonRequest.post(_options);
     }
 
@@ -778,6 +790,7 @@ public class SocialService extends Service
         _options.put("key", key);
         _options.put("access_token", accessToken.toString());
 
+        jsonRequest.setAPIVersion(getAPIVersion());
         jsonRequest.post(_options);
     }
 
@@ -804,6 +817,7 @@ public class SocialService extends Service
         _options.put("key", key);
         _options.put("access_token", accessToken.toString());
 
+        jsonRequest.setAPIVersion(getAPIVersion());
         jsonRequest.post(_options);
     }
 
@@ -833,6 +847,7 @@ public class SocialService extends Service
             _options.put("notify", notify.toString());
         _options.put("access_token", accessToken.toString());
 
+        jsonRequest.setAPIVersion(getAPIVersion());
         jsonRequest.post(_options);
     }
 
@@ -864,6 +879,7 @@ public class SocialService extends Service
 
         _options.put("access_token", accessToken.toString());
 
+        jsonRequest.setAPIVersion(getAPIVersion());
         jsonRequest.delete(_options);
     }
 
@@ -891,6 +907,7 @@ public class SocialService extends Service
         _options.put("my_role", String.valueOf(myNewRole));
         _options.put("access_token", accessToken.toString());
 
+        jsonRequest.setAPIVersion(getAPIVersion());
         jsonRequest.post(_options);
     }
 
@@ -927,6 +944,7 @@ public class SocialService extends Service
             _options.put("notify", notify.toString());
         _options.put("access_token", accessToken.toString());
 
+        jsonRequest.setAPIVersion(getAPIVersion());
         jsonRequest.post(_options);
     }
 
@@ -993,6 +1011,7 @@ public class SocialService extends Service
 
         _options.put("access_token", accessToken.toString());
 
+        jsonRequest.setAPIVersion(getAPIVersion());
         jsonRequest.post(_options);
     }
 
@@ -1038,6 +1057,7 @@ public class SocialService extends Service
         _options.put("key", key);
         _options.put("access_token", accessToken.toString());
 
+        jsonRequest.setAPIVersion(getAPIVersion());
         jsonRequest.post(_options);
     }
 
@@ -1066,6 +1086,7 @@ public class SocialService extends Service
         _options.put("key", key);
         _options.put("access_token", accessToken.toString());
 
+        jsonRequest.setAPIVersion(getAPIVersion());
         jsonRequest.post(_options);
     }
 }

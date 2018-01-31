@@ -16,6 +16,7 @@ import java.util.Map;
 public class LeaderboardService extends Service
 {
     public static final String ID = "leaderboard";
+    public static final String API_VERSION = "0.2";
 
     private static LeaderboardService instance;
     public static LeaderboardService get() { return instance; }
@@ -42,7 +43,7 @@ public class LeaderboardService extends Service
 
     public LeaderboardService(OnlineLib onlineLib, String location)
     {
-        super(onlineLib, location, ID);
+        super(onlineLib, location, ID, API_VERSION);
 
         set(this);
     }
@@ -115,6 +116,7 @@ public class LeaderboardService extends Service
             args.put("arbitrary_account", arbitraryAccount);
         }
 
+        jsonRequest.setAPIVersion(getAPIVersion());
         jsonRequest.setQueryArguments(args);
         jsonRequest.setToken(accessToken);
         jsonRequest.get();

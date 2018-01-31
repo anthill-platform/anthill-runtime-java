@@ -25,6 +25,7 @@ import java.util.Map;
 public class GameService extends Service
 {
     public static final String ID = "game";
+    public static final String API_VERSION = "0.2";
 
     private static GameService instance;
     public static GameService get() { return instance; }
@@ -815,7 +816,7 @@ public class GameService extends Service
 
     public GameService(OnlineLib onlineLib, String location)
     {
-        super(onlineLib, location, ID);
+        super(onlineLib, location, ID, API_VERSION);
 
         set(this);
     }
@@ -844,6 +845,7 @@ public class GameService extends Service
             }
         });
 
+        jsonRequest.setAPIVersion(getAPIVersion());
         jsonRequest.get();
     }
 
@@ -888,6 +890,8 @@ public class GameService extends Service
             }
         });
 
+
+        jsonRequest.setAPIVersion(getAPIVersion());
         jsonRequest.setToken(accessToken);
 
         jsonRequest.get();
@@ -934,6 +938,7 @@ public class GameService extends Service
 
         fields.put("settings", createSettings.toString());
 
+        jsonRequest.setAPIVersion(getAPIVersion());
         jsonRequest.setToken(accessToken);
         jsonRequest.post(fields);
 
@@ -993,6 +998,7 @@ public class GameService extends Service
 
         jsonRequest.setQueryArguments(fields);
 
+        jsonRequest.setAPIVersion(getAPIVersion());
         jsonRequest.setToken(accessToken);
         jsonRequest.get();
 
@@ -1039,6 +1045,7 @@ public class GameService extends Service
             }
         });
 
+        jsonRequest.setAPIVersion(getAPIVersion());
         jsonRequest.setToken(accessToken);
         jsonRequest.post(null);
     }
@@ -1146,6 +1153,7 @@ public class GameService extends Service
             fields.put("create_settings", createSettings.toString());
         }
 
+        jsonRequest.setAPIVersion(getAPIVersion());
         jsonRequest.setToken(accessToken);
         jsonRequest.post(fields);
 
@@ -1222,6 +1230,7 @@ public class GameService extends Service
             fields.put("region", region);
         }
 
+        jsonRequest.setAPIVersion(getAPIVersion());
         jsonRequest.setToken(accessToken);
         jsonRequest.post(fields);
 
@@ -1261,6 +1270,7 @@ public class GameService extends Service
                     }
                 });
 
+        jsonRequest.setAPIVersion(getAPIVersion());
         jsonRequest.setToken(accessToken);
         jsonRequest.get();
     }
@@ -1320,6 +1330,7 @@ public class GameService extends Service
         fields.put("accounts", accounts.toString());
         jsonRequest.setQueryArguments(fields);
 
+        jsonRequest.setAPIVersion(getAPIVersion());
         jsonRequest.setToken(accessToken);
         jsonRequest.get();
     }
@@ -1379,6 +1390,7 @@ public class GameService extends Service
         if (closeCallback != null)
             args.put("close_callback", closeCallback);
 
+        jsonRequest.setAPIVersion(getAPIVersion());
         jsonRequest.setToken(accessToken);
         jsonRequest.post(args);
 
@@ -1403,6 +1415,7 @@ public class GameService extends Service
         HashMap<String, Object> args = new HashMap<String, Object>();
         args.put("message", message.toString());
 
+        jsonRequest.setAPIVersion(getAPIVersion());
         jsonRequest.setToken(accessToken);
         jsonRequest.delete(args);
     }
@@ -1443,6 +1456,7 @@ public class GameService extends Service
             }
         });
 
+        jsonRequest.setAPIVersion(getAPIVersion());
         jsonRequest.setToken(accessToken);
         jsonRequest.get();
     }

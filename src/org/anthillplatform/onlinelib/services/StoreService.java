@@ -13,6 +13,7 @@ import java.util.*;
 public class StoreService extends Service
 {
     public static final String ID = "store";
+    public static final String API_VERSION = "0.2";
 
     private static StoreService instance;
     public static StoreService get() { return instance; }
@@ -317,7 +318,7 @@ public class StoreService extends Service
 
     public StoreService(OnlineLib onlineLib, String location)
     {
-        super(onlineLib, location, ID);
+        super(onlineLib, location, ID, API_VERSION);
 
         set(this);
     }
@@ -367,6 +368,7 @@ public class StoreService extends Service
             }
         });
 
+        jsonRequest.setAPIVersion(getAPIVersion());
         jsonRequest.setToken(accessToken);
         jsonRequest.get();
     }
@@ -411,6 +413,7 @@ public class StoreService extends Service
             }
         });
 
+        jsonRequest.setAPIVersion(getAPIVersion());
         jsonRequest.setToken(accessToken);
         jsonRequest.post(null);
     }
@@ -450,6 +453,7 @@ public class StoreService extends Service
             }
         });
 
+        jsonRequest.setAPIVersion(getAPIVersion());
         jsonRequest.setToken(accessToken);
         jsonRequest.post(null);
     }
@@ -498,6 +502,7 @@ public class StoreService extends Service
 
         fields.put("env", env.toString());
 
+        jsonRequest.setAPIVersion(getAPIVersion());
         jsonRequest.setToken(accessToken);
         jsonRequest.post(fields);
     }

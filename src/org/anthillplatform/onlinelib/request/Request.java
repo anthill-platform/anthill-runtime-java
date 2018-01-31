@@ -29,6 +29,7 @@ public abstract class Request
     private AccessToken workingAccessToken;
     private Headers responseHeaders;
     private InputStream putStream;
+    private String APIVersion;
 
     public void setToken(AccessToken workingAccessToken)
     {
@@ -80,6 +81,11 @@ public abstract class Request
         init(RequestMethod.get);
 
         start();
+    }
+
+    public void setAPIVersion(String APIVersion)
+    {
+        this.APIVersion = APIVersion;
     }
 
     private void start()
@@ -140,6 +146,11 @@ public abstract class Request
             {
                 request.queryString(entry.getKey(), entry.getValue());
             }
+        }
+
+        if (APIVersion != null)
+        {
+            request.header("X-Api-Version", APIVersion);
         }
 
         request.asStringAsync(new Callback<String>()

@@ -17,6 +17,7 @@ public class EventService extends Service
     private JsonRequest currentRequest;
 
     public static final String ID = "event";
+    public static final String API_VERSION = "0.2";
 
     private static EventService instance;
     public static EventService get() { return instance; }
@@ -24,7 +25,7 @@ public class EventService extends Service
 
     public EventService(OnlineLib onlineLib, String location)
     {
-        super(onlineLib, location, ID);
+        super(onlineLib, location, ID, API_VERSION);
 
         set(this);
     }
@@ -248,6 +249,8 @@ public class EventService extends Service
                 }
             }
         });
+
+        scorePost.setAPIVersion(getAPIVersion());
         scorePost.setToken(accessToken);
 
         Map<String, Object> fields = new HashMap<String, Object>();
@@ -289,6 +292,8 @@ public class EventService extends Service
                 }
             }
         });
+
+        scorePost.setAPIVersion(getAPIVersion());
         scorePost.setToken(accessToken);
 
         Map<String, Object> fields = new HashMap<String, Object>();
@@ -340,6 +345,7 @@ public class EventService extends Service
             }
         });
 
+        scorePost.setAPIVersion(getAPIVersion());
         scorePost.setToken(accessToken);
 
         Map<String, Object> fields = new HashMap<String, Object>();
@@ -368,6 +374,7 @@ public class EventService extends Service
             }
         });
 
+        scorePost.setAPIVersion(getAPIVersion());
         scorePost.setToken(accessToken);
         scorePost.post();
     }
@@ -386,6 +393,7 @@ public class EventService extends Service
             }
         });
 
+        scorePost.setAPIVersion(getAPIVersion());
         scorePost.setToken(accessToken);
 
         Map<String, Object> fields = new HashMap<String, Object>();
@@ -413,6 +421,7 @@ public class EventService extends Service
             }
         });
 
+        scorePost.setAPIVersion(getAPIVersion());
         scorePost.setToken(accessToken);
 
         Map<String, Object> fields = new HashMap<String, Object>();
@@ -447,6 +456,7 @@ public class EventService extends Service
                     }
                 });
 
+        scorePost.setAPIVersion(getAPIVersion());
         scorePost.setToken(accessToken);
 
         Map<String, Object> fields = new HashMap<String, Object>();
@@ -498,6 +508,7 @@ public class EventService extends Service
             }
         });
 
+        scorePost.setAPIVersion(getAPIVersion());
         scorePost.setToken(accessToken);
 
         Map<String, Object> fields = new HashMap<String, Object>();
@@ -563,6 +574,7 @@ public class EventService extends Service
             }
         });
 
+        currentRequest.setAPIVersion(getAPIVersion());
         Map<String, String> queryArguments = new HashMap<String, String>();
         queryArguments.put("group_id", groupId);
         currentRequest.setQueryArguments(queryArguments);
@@ -616,6 +628,7 @@ public class EventService extends Service
             }
         });
 
+        currentRequest.setAPIVersion(getAPIVersion());
         Map<String, String> queryArguments = new HashMap<String, String>();
 
         if (groupContext != null)

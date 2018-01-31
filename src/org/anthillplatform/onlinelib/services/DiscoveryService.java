@@ -15,6 +15,7 @@ public class DiscoveryService extends Service
     private Map<String, Service> services;
 
     public static final String ID = "discovery";
+    public static final String API_VERSION = "0.2";
 
     private static DiscoveryService instance;
     public static DiscoveryService get() { return instance; }
@@ -27,7 +28,7 @@ public class DiscoveryService extends Service
 
     public DiscoveryService(OnlineLib onlineLib)
     {
-        super(onlineLib, null, null);
+        super(onlineLib, null, null, API_VERSION);
 
         set(this);
 
@@ -102,6 +103,8 @@ public class DiscoveryService extends Service
             }
         });
 
+        request.setAPIVersion(getAPIVersion());
+
         request.get();
     }
 
@@ -111,7 +114,7 @@ public class DiscoveryService extends Service
 
         if (gen == null)
         {
-            return new Service(getOnlineLib(), serviceLocation, id);
+            return new Service(getOnlineLib(), serviceLocation, id, null);
         }
 
         return gen.newService(getOnlineLib(), serviceLocation);

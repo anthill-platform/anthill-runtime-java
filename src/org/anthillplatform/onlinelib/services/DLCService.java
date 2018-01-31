@@ -13,6 +13,7 @@ public class DLCService extends Service
     private ArrayList<DLCRecord> records;
 
     public static final String ID = "dlc";
+    public static final String API_VERSION = "0.2";
 
     private static DLCService instance;
     public static DLCService get() { return instance; }
@@ -32,7 +33,7 @@ public class DLCService extends Service
 
     public DLCService(OnlineLib onlineLib, String location)
     {
-        super(onlineLib, location, ID);
+        super(onlineLib, location, ID, API_VERSION);
 
         set(this);
 
@@ -59,6 +60,8 @@ public class DLCService extends Service
                 }
             }
         });
+
+        jsonRequest.setAPIVersion(getAPIVersion());
 
         jsonRequest.get();
     }

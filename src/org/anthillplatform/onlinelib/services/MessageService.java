@@ -25,6 +25,7 @@ import static org.anthillplatform.onlinelib.util.Utils.DATE_FORMAT;
 public class MessageService extends Service
 {
     public static final String ID = "message";
+    public static final String API_VERSION = "0.2";
 
     private static MessageService instance;
     public static MessageService get() { return instance; }
@@ -48,7 +49,7 @@ public class MessageService extends Service
 
     public MessageService(OnlineLib onlineLib, String location)
     {
-        super(onlineLib, location, ID);
+        super(onlineLib, location, ID, API_VERSION);
 
         set(this);
     }
@@ -616,6 +617,7 @@ public class MessageService extends Service
             }
         });
 
+        jsonRequest.setAPIVersion(getAPIVersion());
         jsonRequest.setToken(accessToken);
         jsonRequest.get();
     }
@@ -723,6 +725,7 @@ public class MessageService extends Service
             }
         });
 
+        jsonRequest.setAPIVersion(getAPIVersion());
         jsonRequest.setToken(accessToken);
         jsonRequest.get();
     }
@@ -775,6 +778,7 @@ public class MessageService extends Service
             }
         });
 
+        jsonRequest.setAPIVersion(getAPIVersion());
         jsonRequest.setToken(accessToken);
         jsonRequest.get();
     }
@@ -849,6 +853,7 @@ public class MessageService extends Service
             }
         });
 
+        jsonRequest.setAPIVersion(getAPIVersion());
         jsonRequest.setToken(accessToken);
         jsonRequest.get();
     }
