@@ -7,16 +7,16 @@
 		<version>7</version>
 	</parent>
 
-	<groupId>com.github.anthill-services</groupId>
+	<groupId>com.github.anthill-platform</groupId>
 	<artifactId>anthill-runtime-java</artifactId>
 	<packaging>jar</packaging>
 	<version>0.1.4</version>
 
 	<name>OnlileLib</name>
-	<description>Java Runtime for Anthill services</description>
-	<url>https://github.com/anthill-services/anthill-runtime-java</url>
+	<description>Java Runtime for Anthill Platform</description>
+	<url>https://github.com/anthill-platform/anthill-runtime-java</url>
 	<issueManagement>
-		<url>https://github.com/anthill-services/anthill-runtime-java/issues</url>
+		<url>https://github.com/anthill-platform/anthill-runtime-java/issues</url>
 	</issueManagement>
 
 	<licenses>
@@ -30,7 +30,7 @@
 	<developers>
 		<developer>
 			<id>Developers</id>
-			<url>https://github.com/orgs/anthill-services/people</url>
+			<url>https://github.com/orgs/anthill-platform/people</url>
 		</developer>
 	</developers>
 
@@ -42,9 +42,9 @@
 	</repositories>
 
 	<scm>
-		<connection>scm:git:https://github.com/anthill-services/anthill-runtime-java.git</connection>
-		<developerConnection>scm:git:https://github.com/anthill-services/anthill-runtime-java.git</developerConnection>
-		<url>https://github.com/anthill-services/runtime-java</url>
+		<connection>scm:git:https://github.com/anthill-platform/anthill-runtime-java.git</connection>
+		<developerConnection>scm:git:https://github.com/anthill-platform/anthill-runtime-java.git</developerConnection>
+		<url>https://github.com/anthill-platform/runtime-java</url>
 	</scm>
 
 	<properties>
