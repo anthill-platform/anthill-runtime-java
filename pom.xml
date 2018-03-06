@@ -10,7 +10,7 @@
 	<groupId>com.github.anthill-services</groupId>
 	<artifactId>anthill-runtime-java</artifactId>
 	<packaging>jar</packaging>
-	<version>0.1.3</version>
+	<version>0.1.4</version>
 
 	<name>OnlileLib</name>
 	<description>Java Runtime for Anthill services</description>

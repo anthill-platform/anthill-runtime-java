@@ -5,9 +5,11 @@ import org.anthillplatform.onlinelib.OnlineLib;
 import org.anthillplatform.onlinelib.Status;
 import org.anthillplatform.onlinelib.entity.AccessToken;
 import org.anthillplatform.onlinelib.request.Request;
+import org.anthillplatform.onlinelib.util.Utils;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.text.SimpleDateFormat;
 import java.util.*;
 
 public class StoreService extends Service
@@ -24,6 +26,7 @@ public class StoreService extends Service
         private String name;
         private List<Item> items;
         private Map<String, Tier> tiers;
+        private List<Campaign> campaigns;
 
         public class Item
         {
@@ -33,16 +36,10 @@ public class StoreService extends Service
             private Map<String, Integer> contents;
             private JSONObject publicPayload;
 
-            public abstract class Billing
-            {
-                public abstract void parse(JSONObject data);
-            }
-
-            public class IAPBilling extends Billing
+            public class Billing
             {
                 private Tier tier;
 
-                @Override
                 public void parse(JSONObject data)
                 {
                     String tierName = data.optString("tier", "");
@@ -55,42 +52,22 @@ public class StoreService extends Service
                 }
             }
 
-            public class OfflineBilling extends Billing
-            {
-                private String currency;
-                private int amount;
-
-                @Override
-                public void parse(JSONObject data)
-                {
-                    this.currency = data.optString("currency");
-                    this.amount = data.optInt("amount", 1);
-                }
-
-                public String getCurrency()
-                {
-                    return currency;
-                }
-
-                public int getAmount()
-                {
-                    return amount;
-                }
-            }
-
             public Item()
             {
                 this.contents = new HashMap<String, Integer>();
             }
 
-            private Billing newBilling(String type)
+            public Campaign.CampaignItem getCampaignItem()
             {
-                if (type.equals("iap"))
+                for (Campaign campaign : getCampaigns())
                 {
-                    return new IAPBilling();
+                    Campaign.CampaignItem campaignItem = campaign.getItems().get(id);
+
+                    if (campaignItem != null)
+                        return campaignItem;
                 }
 
-                return new OfflineBilling();
+                return null;
             }
 
             public void parse(JSONObject data)
@@ -103,8 +80,7 @@ public class StoreService extends Service
 
                 if (billing != null)
                 {
-                    String type = billing.optString("type", "offline");
-                    this.billing = newBilling(type);
+                    this.billing = new Billing();
                     this.billing.parse(billing);
                 }
 
@@ -154,6 +130,7 @@ public class StoreService extends Service
 
         public class Tier
         {
+            private String id;
             private Map<String, Price> prices;
             private String product;
 
@@ -211,9 +188,15 @@ public class StoreService extends Service
                 }
             }
 
-            public Tier()
+            public Tier(String id)
             {
+                this.id = id;
                 this.prices = new HashMap<String, Price>();
+            }
+
+            public String getId()
+            {
+                return id;
             }
 
             public Map<String, Price> getPrices()
@@ -248,18 +231,132 @@ public class StoreService extends Service
 
                 this.product = data.optString("product", "Unknown");
             }
+
+
+        }
+
+        public class Campaign
+        {
+            private JSONObject payload;
+            private Date timeStart;
+            private Date timeEnd;
+            private Map<String, CampaignItem> items;
+
+            public class CampaignItem
+            {
+                private Tier updatedTier;
+                private JSONObject updatedPublicPayload;
+
+                public CampaignItem()
+                {
+
+                }
+
+                public boolean parse(JSONObject data)
+                {
+                    String updatedTier = data.optString("tier", null);
+
+                    if (updatedTier == null)
+                        return false;
+
+                    this.updatedTier = getTiers().get(updatedTier);
+                    this.updatedPublicPayload = data.optJSONObject("public");
+
+                    return true;
+                }
+
+                public JSONObject getUpdatedPublicPayload()
+                {
+                    return updatedPublicPayload;
+                }
+
+                public Tier getUpdatedTier()
+                {
+                    return updatedTier;
+                }
+            }
+
+            public Campaign()
+            {
+                items = new HashMap<String, CampaignItem>();
+            }
+
+            public boolean parse(JSONObject data)
+            {
+                payload = data.optJSONObject("payload");
+
+                JSONObject time = data.optJSONObject("time");
+
+                if (time != null)
+                {
+                    try
+                    {
+                        SimpleDateFormat format = getTimeFormat();
+
+                        timeStart = format.parse(time.getString("start"));
+                        timeEnd = format.parse(time.getString("end"));
+                    }
+                    catch (Exception ignored)
+                    {
+                        return false;
+                    }
+                }
+                else
+                {
+                    return false;
+                }
+
+                JSONObject items = data.optJSONObject("items");
+
+                if (items != null)
+                {
+                    for (Object key: items.keySet())
+                    {
+                        String id = key.toString();
+                        JSONObject child = items.optJSONObject(id);
+
+                        if (child != null)
+                        {
+                            CampaignItem item = new CampaignItem();
+                            if (!item.parse(child))
+                                continue;
+                            this.items.put(id, item);
+                        }
+                    }
+                }
+
+                return true;
+            }
+
+            public Map<String, CampaignItem> getItems()
+            {
+                return items;
+            }
+
+            public JSONObject getPayload()
+            {
+                return payload;
+            }
+
+
         }
 
         public Store(String name)
         {
             this.name = name;
-            this.items = new ArrayList<Item>();
+            this.items = new LinkedList<Item>();
             this.tiers = new HashMap<String, Tier>();
+            this.campaigns = new LinkedList<Campaign>();
         }
 
         public List<Item> getItems()
         {
             return items;
+        }
+
+        public List<Campaign> getCampaigns()
+        {
+            return campaigns;
         }
 
         public Map<String, Tier> getTiers()
@@ -290,7 +387,7 @@ public class StoreService extends Service
 
                     if (child != null)
                     {
-                        Tier tier = new Tier();
+                        Tier tier = new Tier(id);
                         tier.parse(child);
                         this.tiers.put(id, tier);
                     }
@@ -310,6 +407,24 @@ public class StoreService extends Service
                         Item item = new Item();
                         item.parse(child);
                         this.items.add(item);
+                    }
+                }
+            }
+
+            JSONArray campaigns = store.optJSONArray("campaigns");
+
+            if (campaigns != null)
+            {
+                for (int i = 0, t = campaigns.length(); i < t; i++)
+                {
+                    JSONObject child = campaigns.optJSONObject(i);
+
+                    if (child != null)
+                    {
+                        Campaign campaign = new Campaign();
+                        if (!campaign.parse(child))
+                            continue;
+                        this.campaigns.add(campaign);
                     }
                 }
             }
@@ -505,5 +620,10 @@ public class StoreService extends Service
         jsonRequest.setAPIVersion(getAPIVersion());
         jsonRequest.setToken(accessToken);
         jsonRequest.post(fields);
+    }
+
+    private static SimpleDateFormat getTimeFormat()
+    {
+        return Utils.DATE_FORMAT;
     }
 }

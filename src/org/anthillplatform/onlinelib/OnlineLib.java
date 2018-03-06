@@ -127,6 +127,15 @@ public class OnlineLib
                 return new StaticService(lib, serviceLocation);
             }
         });
+
+        generators.put(ReportService.ID, new ServiceGen()
+        {
+            @Override
+            public Service newService(OnlineLib lib, String serviceLocation)
+            {
+                return new ReportService(lib, serviceLocation);
+            }
+        });
     }
 
     public static ServiceGen getGenerator(String serviceId)
