@@ -1,13 +1,13 @@
-package org.anthillplatform.onlinelib.services;
+package org.anthillplatform.runtime.services;
 
-import org.anthillplatform.onlinelib.OnlineLib;
-import org.anthillplatform.onlinelib.Status;
-import org.anthillplatform.onlinelib.entity.AccessToken;
-import org.anthillplatform.onlinelib.entity.ApplicationInfo;
-import org.anthillplatform.onlinelib.request.JsonRequest;
-import org.anthillplatform.onlinelib.request.Request;
-import org.anthillplatform.onlinelib.util.JsonRPC;
-import org.anthillplatform.onlinelib.util.WebSocketJsonRPC;
+import org.anthillplatform.runtime.AnthillRuntime;
+import org.anthillplatform.runtime.Status;
+import org.anthillplatform.runtime.entity.AccessToken;
+import org.anthillplatform.runtime.entity.ApplicationInfo;
+import org.anthillplatform.runtime.request.JsonRequest;
+import org.anthillplatform.runtime.request.Request;
+import org.anthillplatform.runtime.util.JsonRPC;
+import org.anthillplatform.runtime.util.WebSocketJsonRPC;
 import org.java_websocket.handshake.ServerHandshake;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -22,6 +22,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Game servers hosting & matchmaking service for Anthill platform
+ *
+ * See https://github.com/anthill-platform/anthill-game-master
+ *     https://github.com/anthill-platform/anthill-game-controller
+ */
 public class GameService extends Service
 {
     public static final String ID = "game";
@@ -814,16 +820,20 @@ public class GameService extends Service
         void fail(Status status);
     }
 
-    public GameService(OnlineLib onlineLib, String location)
+    /**
+     * Please note that you should not create an instance of the service yourself,
+     * and use GameService.get() to get existing one instead
+     */
+    public GameService(AnthillRuntime runtime, String location)
     {
-        super(onlineLib, location, ID, API_VERSION);
+        super(runtime, location, ID, API_VERSION);
 
         set(this);
     }
 
     public void getStatus(final GamesStatusCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(), getLocation() + "/status",
+        JsonRequest jsonRequest = new JsonRequest(getRuntime(), getLocation() + "/status",
             new Request.RequestResult()
         {
             @Override
@@ -851,7 +861,7 @@ public class GameService extends Service
 
     public void getRegions(AccessToken accessToken, final GetRegionsCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(), getLocation() + "/regions",
+        JsonRequest jsonRequest = new JsonRequest(getRuntime(), getLocation() + "/regions",
             new Request.RequestResult()
         {
             @Override
@@ -900,9 +910,9 @@ public class GameService extends Service
     public void createGame(String gameServerName, RoomSettings createSettings,
                            AccessToken accessToken, final JoinGameCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(),
-            getLocation() + "/create/" + getOnlineLib().getApplicationInfo().getGameId() + "/" + gameServerName + "/" +
-                getOnlineLib().getApplicationInfo().getGameVersion(),
+        JsonRequest jsonRequest = new JsonRequest(getRuntime(),
+            getLocation() + "/create/" + getRuntime().getApplicationInfo().getGameName() + "/" + gameServerName + "/" +
+                getRuntime().getApplicationInfo().getGameVersion(),
             new Request.RequestResult()
         {
             @Override
@@ -953,10 +963,10 @@ public class GameService extends Service
     public void listGames(String gameServerName, RoomsFilter filter, AccessToken accessToken,
                           final FindGamesCallback callback, boolean myRegionOnly, boolean showFull, String region)
     {
-        ApplicationInfo applicationInfo = getOnlineLib().getApplicationInfo();
+        ApplicationInfo applicationInfo = getRuntime().getApplicationInfo();
 
-        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(),
-            getLocation() + "/rooms/" + applicationInfo.getGameId() + "/" + gameServerName + "/" +
+        JsonRequest jsonRequest = new JsonRequest(getRuntime(),
+            getLocation() + "/rooms/" + applicationInfo.getGameName() + "/" + gameServerName + "/" +
                 applicationInfo.getGameVersion(),
             new Request.RequestResult()
         {
@@ -1006,8 +1016,8 @@ public class GameService extends Service
 
     public void joinGame(String roomId, AccessToken accessToken, final JoinGameCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(),
-            getLocation() + "/room/" + getOnlineLib().getApplicationInfo().getGameId() + "/" + roomId + "/join",
+        JsonRequest jsonRequest = new JsonRequest(getRuntime(),
+            getLocation() + "/room/" + getRuntime().getApplicationInfo().getGameName() + "/" + roomId + "/join",
             new Request.RequestResult()
         {
             @Override
@@ -1057,10 +1067,10 @@ public class GameService extends Service
             AccessToken accessToken,
             final JoinGameMultiCallback callback)
     {
-        ApplicationInfo applicationInfo = getOnlineLib().getApplicationInfo();
+        ApplicationInfo applicationInfo = getRuntime().getApplicationInfo();
 
-        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(),
-            getLocation() + "/join/multi/" + applicationInfo.getGameId() + "/" + gameServerName + "/" +
+        JsonRequest jsonRequest = new JsonRequest(getRuntime(),
+            getLocation() + "/join/multi/" + applicationInfo.getGameName() + "/" + gameServerName + "/" +
                 applicationInfo.getGameVersion(),
             new Request.RequestResult()
         {
@@ -1171,10 +1181,10 @@ public class GameService extends Service
                          AccessToken accessToken, final JoinGameCallback callback,
                          boolean myRegionOnly, String region)
     {
-        ApplicationInfo applicationInfo = getOnlineLib().getApplicationInfo();
+        ApplicationInfo applicationInfo = getRuntime().getApplicationInfo();
 
-        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(),
-            getLocation() + "/join/" + applicationInfo.getGameId() + "/" + gameServerName + "/" +
+        JsonRequest jsonRequest = new JsonRequest(getRuntime(),
+            getLocation() + "/join/" + applicationInfo.getGameName() + "/" + gameServerName + "/" +
                 applicationInfo.getGameVersion(),
             new Request.RequestResult()
         {
@@ -1240,7 +1250,7 @@ public class GameService extends Service
                                    AccessToken accessToken,
                                    final ListPlayerRecordsCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(),
+        JsonRequest jsonRequest = new JsonRequest(getRuntime(),
                 getLocation() + "/player/" + accountId,
                 new Request.RequestResult()
                 {
@@ -1279,7 +1289,7 @@ public class GameService extends Service
                                             AccessToken accessToken,
                                             final ListMultiplePlayersRecordsCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(),
+        JsonRequest jsonRequest = new JsonRequest(getRuntime(),
             getLocation() + "/players",
         new Request.RequestResult()
         {
@@ -1340,11 +1350,11 @@ public class GameService extends Service
         int maxMembers, String region, boolean autoStart, boolean autoClose, String closeCallback,
         AccessToken accessToken, final CreateEmptyPartyCallback callback)
     {
-        ApplicationInfo applicationInfo = getOnlineLib().getApplicationInfo();
+        ApplicationInfo applicationInfo = getRuntime().getApplicationInfo();
 
-        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(),
+        JsonRequest jsonRequest = new JsonRequest(getRuntime(),
             getLocation() + "/party/create/" +
-            applicationInfo.getGameId() + "/" + applicationInfo.getGameVersion() + "/" + gameServerName,
+            applicationInfo.getGameName() + "/" + applicationInfo.getGameVersion() + "/" + gameServerName,
             new Request.RequestResult()
         {
             @Override
@@ -1399,9 +1409,9 @@ public class GameService extends Service
     public void closeParty(String partyId, JSONObject message,
                            AccessToken accessToken, final DeletePartyCallback callback)
     {
-        ApplicationInfo applicationInfo = getOnlineLib().getApplicationInfo();
+        ApplicationInfo applicationInfo = getRuntime().getApplicationInfo();
 
-        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(),
+        JsonRequest jsonRequest = new JsonRequest(getRuntime(),
             getLocation() + "/party/" + partyId,
             new Request.RequestResult()
         {
@@ -1423,9 +1433,9 @@ public class GameService extends Service
     public void getParty(String partyId,
                          AccessToken accessToken, final GetPartyCallback callback)
     {
-        ApplicationInfo applicationInfo = getOnlineLib().getApplicationInfo();
+        ApplicationInfo applicationInfo = getRuntime().getApplicationInfo();
 
-        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(),
+        JsonRequest jsonRequest = new JsonRequest(getRuntime(),
             getLocation() + "/party/" + partyId,
             new Request.RequestResult()
         {
@@ -1474,7 +1484,7 @@ public class GameService extends Service
             String closeCallback, boolean autoJoin, boolean autoStart, boolean autoClose,
             AccessToken accessToken, PartySession.Listener listener)
     {
-        ApplicationInfo applicationInfo = getOnlineLib().getApplicationInfo();
+        ApplicationInfo applicationInfo = getRuntime().getApplicationInfo();
 
         HashMap<String, String> args = new HashMap<String, String>();
 
@@ -1501,7 +1511,7 @@ public class GameService extends Service
         PartySession partySession = new PartySession(listener);
         partySession.open(
             getLocation() + "/party/create/" +
-            applicationInfo.getGameId() + "/" + applicationInfo.getGameVersion() + "/" + gameServerName + "/session",
+            applicationInfo.getGameName() + "/" + applicationInfo.getGameVersion() + "/" + gameServerName + "/session",
             args);
 
         return partySession;
@@ -1518,7 +1528,7 @@ public class GameService extends Service
         boolean autoJoin,
         AccessToken accessToken, PartySession.Listener listener)
     {
-        ApplicationInfo applicationInfo = getOnlineLib().getApplicationInfo();
+        ApplicationInfo applicationInfo = getRuntime().getApplicationInfo();
 
         HashMap<String, String> args = new HashMap<String, String>();
 

@@ -1,16 +1,21 @@
-package org.anthillplatform.onlinelib.services;
+package org.anthillplatform.runtime.services;
 
-import org.anthillplatform.onlinelib.OnlineLib;
-import org.anthillplatform.onlinelib.Status;
-import org.anthillplatform.onlinelib.entity.AccessToken;
-import org.anthillplatform.onlinelib.request.JsonRequest;
-import org.anthillplatform.onlinelib.request.Request;
-import org.anthillplatform.onlinelib.request.StringRequest;
+import org.anthillplatform.runtime.AnthillRuntime;
+import org.anthillplatform.runtime.Status;
+import org.anthillplatform.runtime.entity.AccessToken;
+import org.anthillplatform.runtime.request.JsonRequest;
+import org.anthillplatform.runtime.request.Request;
+import org.anthillplatform.runtime.request.StringRequest;
 import org.json.JSONObject;
 
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * User profiles service for Anthill platform
+ *
+ * See https://github.com/anthill-platform/anthill-profile
+ */
 public class ProfileService extends Service
 {
     public static final String ID = "profile";
@@ -43,9 +48,13 @@ public class ProfileService extends Service
         }
     }
 
-    public ProfileService(OnlineLib onlineLib, String location)
+    /**
+     * Please note that you should not create an instance of the service yourself,
+     * and use ProfileService.get() to get existing one instead
+     */
+    public ProfileService(AnthillRuntime runtime, String location)
     {
-        super(onlineLib, location, ID, API_VERSION);
+        super(runtime, location, ID, API_VERSION);
 
         set(this);
 
@@ -64,7 +73,7 @@ public class ProfileService extends Service
 
     public void getAccountProfile(final String account, AccessToken accessToken, final ProfileCallback profileCallback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(), getLocation() + "/profile/" + account,
+        JsonRequest jsonRequest = new JsonRequest(getRuntime(), getLocation() + "/profile/" + account,
             new Request.RequestResult()
         {
             @Override
@@ -97,7 +106,7 @@ public class ProfileService extends Service
         Map<String, String> queryArguments = new HashMap<String, String>();
         queryArguments.put("access_token", accessToken.getToken());
 
-        StringRequest jsonRequest = new StringRequest(getOnlineLib(),
+        StringRequest jsonRequest = new StringRequest(getRuntime(),
             getLocation() + "/profile/" + account,
             new Request.RequestResult()
         {
@@ -129,7 +138,7 @@ public class ProfileService extends Service
         Map<String, String> queryArguments = new HashMap<String, String>();
         queryArguments.put("access_token", accessToken.getToken());
 
-        StringRequest jsonRequest = new StringRequest(getOnlineLib(),
+        StringRequest jsonRequest = new StringRequest(getRuntime(),
             getLocation() + "/profile/" + account + (path != null ? "/" + path : ""),
             new Request.RequestResult()
         {

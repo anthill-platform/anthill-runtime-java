@@ -1,11 +1,11 @@
-package org.anthillplatform.onlinelib.services;
+package org.anthillplatform.runtime.services;
 
-import org.anthillplatform.onlinelib.Status;
-import org.anthillplatform.onlinelib.request.JsonRequest;
-import org.anthillplatform.onlinelib.request.Request;
-import org.anthillplatform.onlinelib.request.StringRequest;
-import org.anthillplatform.onlinelib.OnlineLib;
-import org.anthillplatform.onlinelib.entity.AccessToken;
+import org.anthillplatform.runtime.Status;
+import org.anthillplatform.runtime.request.JsonRequest;
+import org.anthillplatform.runtime.request.Request;
+import org.anthillplatform.runtime.request.StringRequest;
+import org.anthillplatform.runtime.AnthillRuntime;
+import org.anthillplatform.runtime.entity.AccessToken;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -13,6 +13,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * User ranking service for Anthill Platform
+ *
+ * See https://github.com/anthill-platform/anthill-leaderboard
+ */
 public class LeaderboardService extends Service
 {
     public static final String ID = "leaderboard";
@@ -41,9 +46,13 @@ public class LeaderboardService extends Service
         }
     }
 
-    public LeaderboardService(OnlineLib onlineLib, String location)
+    /**
+     * Please note that you should not create an instance of the service yourself,
+     * and use LeaderboardService.get() to get existing one instead
+     */
+    public LeaderboardService(AnthillRuntime runtime, String location)
     {
-        super(onlineLib, location, ID, API_VERSION);
+        super(runtime, location, ID, API_VERSION);
 
         set(this);
     }
@@ -68,7 +77,7 @@ public class LeaderboardService extends Service
     public void getLeaderboard(String name, String order, int limit, int offset, String arbitraryAccount,
                                AccessToken accessToken, final LeaderboardCallback profileCallback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(), getLocation() + "/leaderboard/" +
+        JsonRequest jsonRequest = new JsonRequest(getRuntime(), getLocation() + "/leaderboard/" +
                 order + "/" + name,
 
             new Request.RequestResult()
@@ -125,7 +134,7 @@ public class LeaderboardService extends Service
     public void postLeaderboard(String name, String order, float score,
                                 String display_name, int expire_in,
                                 AccessToken accessToken,
-                                final OnlineLib.Callback callback)
+                                final AnthillRuntime.Callback callback)
     {
         postLeaderboard(name, order, score, display_name, expire_in, null, null, accessToken, callback);
     }
@@ -134,20 +143,20 @@ public class LeaderboardService extends Service
                                 String display_name, int expire_in,
                                 JSONObject profile, String arbitraryAccount,
                                 AccessToken accessToken,
-                                final OnlineLib.Callback callback)
+                                final AnthillRuntime.Callback callback)
     {
         Map<String, String> queryArguments = new HashMap<String, String>();
 
         queryArguments.put("access_token", accessToken.getToken());
 
-        StringRequest jsonRequest = new StringRequest(getOnlineLib(),
+        StringRequest jsonRequest = new StringRequest(getRuntime(),
             getLocation() + "/leaderboard/" + order + "/" + name,
                 new Request.RequestResult()
                 {
                     @Override
                     public void complete(Request request, Status status)
                     {
-                        callback.complete(LeaderboardService.this.getOnlineLib(), status);
+                        callback.complete(LeaderboardService.this.getRuntime(), status);
                     }
                 });
 

@@ -1,13 +1,18 @@
-package org.anthillplatform.onlinelib.services;
+package org.anthillplatform.runtime.services;
 
-import org.anthillplatform.onlinelib.OnlineLib;
-import org.anthillplatform.onlinelib.Status;
-import org.anthillplatform.onlinelib.request.JsonRequest;
-import org.anthillplatform.onlinelib.request.Request;
+import org.anthillplatform.runtime.AnthillRuntime;
+import org.anthillplatform.runtime.Status;
+import org.anthillplatform.runtime.request.JsonRequest;
+import org.anthillplatform.runtime.request.Request;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
 
+/**
+ * Downloadable content (DLC) management service for Anthill platform
+ *
+ * See https://github.com/anthill-platform/anthill-dlc
+ */
 public class DLCService extends Service
 {
     private ArrayList<DLCRecord> records;
@@ -31,9 +36,13 @@ public class DLCService extends Service
         void complete(DLCService service, Status status);
     }
 
-    public DLCService(OnlineLib onlineLib, String location)
+    /**
+     * Please note that you should not create an instance of the service yourself,
+     * and use DLCService.get() to get existing one instead
+     */
+    public DLCService(AnthillRuntime runtime, String location)
     {
-        super(onlineLib, location, ID, API_VERSION);
+        super(runtime, location, ID, API_VERSION);
 
         set(this);
 
@@ -42,7 +51,7 @@ public class DLCService extends Service
 
     public void download(String appName, String appVersion, final DLCCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(),
+        JsonRequest jsonRequest = new JsonRequest(getRuntime(),
             getLocation() + "/data/" + appName + "/" + appVersion,
             new Request.RequestResult()
         {

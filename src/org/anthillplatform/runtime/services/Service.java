@@ -1,18 +1,18 @@
-package org.anthillplatform.onlinelib.services;
+package org.anthillplatform.runtime.services;
 
-import org.anthillplatform.onlinelib.OnlineLib;
+import org.anthillplatform.runtime.AnthillRuntime;
 
 public class Service
 {
     private final String id;
-    private final OnlineLib onlineLib;
+    private final AnthillRuntime runtime;
     private String location;
     private String APIVersion;
 
-    public Service(OnlineLib onlineLib, String location, String id, String APIVersion)
+    public Service(AnthillRuntime runtime, String location, String id, String APIVersion)
     {
         this.id = id;
-        this.onlineLib = onlineLib;
+        this.runtime = runtime;
         this.location = location;
         this.APIVersion = APIVersion;
     }
@@ -32,9 +32,9 @@ public class Service
         return id;
     }
 
-    public OnlineLib getOnlineLib()
+    public AnthillRuntime getRuntime()
     {
-        return onlineLib;
+        return runtime;
     }
 
     public String getLocation()

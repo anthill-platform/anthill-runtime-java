@@ -1,20 +1,22 @@
-package org.anthillplatform.onlinelib.services;
+package org.anthillplatform.runtime.services;
 
-import org.anthillplatform.onlinelib.OnlineLib;
-import org.anthillplatform.onlinelib.Status;
-import org.anthillplatform.onlinelib.entity.AccessToken;
-import org.anthillplatform.onlinelib.entity.ApplicationInfo;
-import org.anthillplatform.onlinelib.request.JsonRequest;
-import org.anthillplatform.onlinelib.request.Request;
-import org.anthillplatform.onlinelib.util.Utils;
-import org.json.JSONArray;
+import org.anthillplatform.runtime.AnthillRuntime;
+import org.anthillplatform.runtime.Status;
+import org.anthillplatform.runtime.entity.AccessToken;
+import org.anthillplatform.runtime.entity.ApplicationInfo;
+import org.anthillplatform.runtime.request.JsonRequest;
+import org.anthillplatform.runtime.request.Request;
 import org.json.JSONObject;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
-import java.text.SimpleDateFormat;
 import java.util.*;
 
+/**
+ * User submitted reports collecting service
+ *
+ * See https://github.com/anthill-platform/anthill-report
+ */
 public class ReportService extends Service
 {
     public static final String ID = "report";
@@ -31,9 +33,13 @@ public class ReportService extends Service
         text
     }
 
-    public ReportService(OnlineLib onlineLib, String location)
+    /**
+     * Please note that you should not create an instance of the service yourself,
+     * and use ReportService.get() to get existing one instead
+     */
+    public ReportService(AnthillRuntime runtime, String location)
     {
-        super(onlineLib, location, ID, API_VERSION);
+        super(runtime, location, ID, API_VERSION);
 
         set(this);
     }
@@ -77,10 +83,10 @@ public class ReportService extends Service
         AccessToken accessToken,
         final UploadReportCallback callback)
     {
-        ApplicationInfo applicationInfo = getOnlineLib().getApplicationInfo();
+        ApplicationInfo applicationInfo = getRuntime().getApplicationInfo();
 
-        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(),
-            getLocation() + "/upload/" + applicationInfo.getGameId() + "/" + applicationInfo.getGameVersion(),
+        JsonRequest jsonRequest = new JsonRequest(getRuntime(),
+            getLocation() + "/upload/" + applicationInfo.getGameName() + "/" + applicationInfo.getGameVersion(),
             new Request.RequestResult()
         {
             @Override

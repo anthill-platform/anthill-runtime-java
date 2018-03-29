@@ -1,4 +1,4 @@
-package org.anthillplatform.onlinelib.util;
+package org.anthillplatform.runtime.util;
 
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.drafts.Draft_17;

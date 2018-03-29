@@ -1,4 +1,4 @@
-package org.anthillplatform.onlinelib.util;
+package org.anthillplatform.runtime.util;
 
 import org.json.JSONArray;
 import org.json.JSONException;

@@ -1,9 +1,9 @@
-package org.anthillplatform.onlinelib.request;
+package org.anthillplatform.runtime.request;
 
 import com.mashape.unirest.http.HttpMethod;
-import org.anthillplatform.onlinelib.Status;
-import org.anthillplatform.onlinelib.entity.AccessToken;
-import org.anthillplatform.onlinelib.services.LoginService;
+import org.anthillplatform.runtime.Status;
+import org.anthillplatform.runtime.entity.AccessToken;
+import org.anthillplatform.runtime.services.LoginService;
 import com.mashape.unirest.http.Headers;
 import com.mashape.unirest.http.HttpResponse;
 import com.mashape.unirest.http.Unirest;
@@ -12,7 +12,7 @@ import com.mashape.unirest.http.exceptions.UnirestException;
 import com.mashape.unirest.request.GetRequest;
 import com.mashape.unirest.request.HttpRequest;
 import com.mashape.unirest.request.HttpRequestWithBody;
-import org.anthillplatform.onlinelib.util.InputStreamRequest;
+import org.anthillplatform.runtime.util.InputStreamRequest;
 
 import java.io.InputStream;
 import java.util.HashMap;

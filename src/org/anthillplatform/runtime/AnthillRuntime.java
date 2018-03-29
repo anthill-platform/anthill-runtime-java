@@ -1,29 +1,33 @@
-package org.anthillplatform.onlinelib;
+package org.anthillplatform.runtime;
 
-import org.anthillplatform.onlinelib.entity.ApplicationInfo;
-import org.anthillplatform.onlinelib.request.JsonRequest;
+import org.anthillplatform.runtime.entity.ApplicationInfo;
+import org.anthillplatform.runtime.request.JsonRequest;
 import com.mashape.unirest.http.Unirest;
-import org.anthillplatform.onlinelib.request.Request;
-import org.anthillplatform.onlinelib.services.*;
+import org.anthillplatform.runtime.request.Request;
+import org.anthillplatform.runtime.services.*;
 import org.json.JSONObject;
 
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
-public class OnlineLib
+/**
+ * Java Runtime for Anthill Platform
+ * @author desertkun
+ *
+ * https://github.com/anthill-platform/anthill-runtime-java
+ */
+public class AnthillRuntime
 {
-    private static OnlineLib instance;
-
-    public static OnlineLib get() { return instance; }
-    private static void set(OnlineLib service) { instance = service; }
-
+    private static AnthillRuntime instance;
     private final HashMap<String, Object> environmentVariables;
-
     private ApplicationInfo applicationInfo;
     private boolean initialized;
     private DiscoveryService discoveryService;
     private final String APIVersion;
+
+    public static AnthillRuntime get() { return instance; }
+    private static void set(AnthillRuntime service) { instance = service; }
 
     private static Map<String, ServiceGen> generators = new HashMap<String, ServiceGen>();
 
@@ -32,7 +36,7 @@ public class OnlineLib
         generators.put(GameService.ID, new ServiceGen()
         {
             @Override
-            public Service newService(OnlineLib lib, String serviceLocation)
+            public Service newService(AnthillRuntime lib, String serviceLocation)
             {
                 return new GameService(lib, serviceLocation);
             }
@@ -41,7 +45,7 @@ public class OnlineLib
         generators.put(DLCService.ID, new ServiceGen()
         {
             @Override
-            public Service newService(OnlineLib lib, String serviceLocation)
+            public Service newService(AnthillRuntime lib, String serviceLocation)
             {
                 return new DLCService(lib, serviceLocation);
             }
@@ -50,7 +54,7 @@ public class OnlineLib
         generators.put(LoginService.ID, new ServiceGen()
         {
             @Override
-            public Service newService(OnlineLib lib, String serviceLocation)
+            public Service newService(AnthillRuntime lib, String serviceLocation)
             {
                 return new LoginService(lib, serviceLocation);
             }
@@ -59,7 +63,7 @@ public class OnlineLib
         generators.put(ProfileService.ID, new ServiceGen()
         {
             @Override
-            public Service newService(OnlineLib lib, String serviceLocation)
+            public Service newService(AnthillRuntime lib, String serviceLocation)
             {
                 return new ProfileService(lib, serviceLocation);
             }
@@ -68,7 +72,7 @@ public class OnlineLib
         generators.put(LeaderboardService.ID, new ServiceGen()
         {
             @Override
-            public Service newService(OnlineLib lib, String serviceLocation)
+            public Service newService(AnthillRuntime lib, String serviceLocation)
             {
                 return new LeaderboardService(lib, serviceLocation);
             }
@@ -77,7 +81,7 @@ public class OnlineLib
         generators.put(PromoService.ID, new ServiceGen()
         {
             @Override
-            public Service newService(OnlineLib lib, String serviceLocation)
+            public Service newService(AnthillRuntime lib, String serviceLocation)
             {
                 return new PromoService(lib, serviceLocation);
             }
@@ -86,7 +90,7 @@ public class OnlineLib
         generators.put(EventService.ID, new ServiceGen()
         {
             @Override
-            public Service newService(OnlineLib lib, String serviceLocation)
+            public Service newService(AnthillRuntime lib, String serviceLocation)
             {
                 return new EventService(lib, serviceLocation);
             }
@@ -95,7 +99,7 @@ public class OnlineLib
         generators.put(MessageService.ID, new ServiceGen()
         {
             @Override
-            public Service newService(OnlineLib lib, String serviceLocation)
+            public Service newService(AnthillRuntime lib, String serviceLocation)
             {
                 return new MessageService(lib, serviceLocation);
             }
@@ -104,7 +108,7 @@ public class OnlineLib
         generators.put(StoreService.ID, new ServiceGen()
         {
             @Override
-            public Service newService(OnlineLib lib, String serviceLocation)
+            public Service newService(AnthillRuntime lib, String serviceLocation)
             {
                 return new StoreService(lib, serviceLocation);
             }
@@ -113,7 +117,7 @@ public class OnlineLib
         generators.put(SocialService.ID, new ServiceGen()
         {
             @Override
-            public Service newService(OnlineLib lib, String serviceLocation)
+            public Service newService(AnthillRuntime lib, String serviceLocation)
             {
                 return new SocialService(lib, serviceLocation);
             }
@@ -122,7 +126,7 @@ public class OnlineLib
         generators.put(StaticService.ID, new ServiceGen()
         {
             @Override
-            public Service newService(OnlineLib lib, String serviceLocation)
+            public Service newService(AnthillRuntime lib, String serviceLocation)
             {
                 return new StaticService(lib, serviceLocation);
             }
@@ -131,7 +135,7 @@ public class OnlineLib
         generators.put(ReportService.ID, new ServiceGen()
         {
             @Override
-            public Service newService(OnlineLib lib, String serviceLocation)
+            public Service newService(AnthillRuntime lib, String serviceLocation)
             {
                 return new ReportService(lib, serviceLocation);
             }
@@ -155,15 +159,15 @@ public class OnlineLib
 
     public interface ServiceGen
     {
-        Service newService(OnlineLib lib, String serviceLocation);
+        Service newService(AnthillRuntime lib, String serviceLocation);
     }
 
     public interface Callback
     {
-        void complete(OnlineLib lib, Status status);
+        void complete(AnthillRuntime lib, Status status);
     }
 
-    public OnlineLib(ApplicationInfo applicationInfo, String APIVersion)
+    public AnthillRuntime(ApplicationInfo applicationInfo, String APIVersion)
     {
         set(this);
 
@@ -193,7 +197,7 @@ public class OnlineLib
     private void getEnvironmentInfo(final Callback complete)
     {
         JsonRequest request = new JsonRequest(this,
-            applicationInfo.getEnvironmentService() + "/" + applicationInfo.getGameId() + "/" +
+            applicationInfo.getEnvironmentService() + "/" + applicationInfo.getGameName() + "/" +
                 applicationInfo.getGameVersion(),
             new Request.RequestResult()
         {
@@ -216,17 +220,17 @@ public class OnlineLib
                         String discoveryService1 = ((String) object.get("discovery"));
 
                         setEnvironmentInfo(discoveryService1, environmentName);
-                        complete.complete(OnlineLib.this, Status.success);
+                        complete.complete(AnthillRuntime.this, Status.success);
                     }
                     catch (Exception e)
                     {
                         e.printStackTrace();
-                        complete.complete(OnlineLib.this, Status.dataCorrupted);
+                        complete.complete(AnthillRuntime.this, Status.dataCorrupted);
                     }
                 }
                 else
                 {
-                    complete.complete(OnlineLib.this, status);
+                    complete.complete(AnthillRuntime.this, status);
                 }
             }
         });

@@ -1,17 +1,22 @@
-package org.anthillplatform.onlinelib.services;
+package org.anthillplatform.runtime.services;
 
-import org.anthillplatform.onlinelib.OnlineLib;
-import org.anthillplatform.onlinelib.Status;
-import org.anthillplatform.onlinelib.entity.AccessToken;
-import org.anthillplatform.onlinelib.request.JsonRequest;
-import org.anthillplatform.onlinelib.request.Request;
-import org.anthillplatform.onlinelib.util.Utils;
+import org.anthillplatform.runtime.AnthillRuntime;
+import org.anthillplatform.runtime.Status;
+import org.anthillplatform.runtime.entity.AccessToken;
+import org.anthillplatform.runtime.request.JsonRequest;
+import org.anthillplatform.runtime.request.Request;
+import org.anthillplatform.runtime.util.Utils;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.text.SimpleDateFormat;
 import java.util.*;
 
+/**
+ * Time-Limited events service for Anthill platform
+ *
+ * See https://github.com/anthill-platform/anthill-event
+ */
 public class EventService extends Service
 {
     private JsonRequest currentRequest;
@@ -23,9 +28,13 @@ public class EventService extends Service
     public static EventService get() { return instance; }
     private static void set(EventService service) { instance = service; }
 
-    public EventService(OnlineLib onlineLib, String location)
+    /**
+     * Please note that you should not create an instance of the service yourself,
+     * and use EventService.get() to get existing one instead
+     */
+    public EventService(AnthillRuntime runtime, String location)
     {
-        super(onlineLib, location, ID, API_VERSION);
+        super(runtime, location, ID, API_VERSION);
 
         set(this);
     }
@@ -232,7 +241,7 @@ public class EventService extends Service
     public void updateEventProfile(String eventId, JSONObject profile, String path, boolean merge,
                                    final PostEventProfileCallback callback, AccessToken accessToken)
     {
-        JsonRequest scorePost = new JsonRequest(getOnlineLib(),
+        JsonRequest scorePost = new JsonRequest(getRuntime(),
             getLocation() + "/event/" + eventId + "/profile",
             new Request.RequestResult()
         {
@@ -275,7 +284,7 @@ public class EventService extends Service
     public void updateGroupEventProfile(String eventId, String groupId, JSONObject profile, String path, boolean merge,
                                    final PostEventProfileCallback callback, AccessToken accessToken)
     {
-        JsonRequest scorePost = new JsonRequest(getOnlineLib(),
+        JsonRequest scorePost = new JsonRequest(getRuntime(),
             getLocation() + "/event/" + eventId + "/group/profile",
             new Request.RequestResult()
         {
@@ -319,7 +328,7 @@ public class EventService extends Service
     public void addEventScore(String eventId, float score, boolean autoJoin, JSONObject leaderboardInfo,
                               final PostEventScoreCallback callback, AccessToken accessToken)
     {
-        JsonRequest scorePost = new JsonRequest(getOnlineLib(),
+        JsonRequest scorePost = new JsonRequest(getRuntime(),
             getLocation() + "/event/" + eventId + "/score/add",
             new Request.RequestResult()
         {
@@ -363,7 +372,7 @@ public class EventService extends Service
 
     public void leaveEvent(String eventId, final LeaveEventCallback callback, AccessToken accessToken)
     {
-        JsonRequest scorePost = new JsonRequest(getOnlineLib(),
+        JsonRequest scorePost = new JsonRequest(getRuntime(),
             getLocation() + "/event/" + eventId + "/leave",
         new Request.RequestResult()
         {
@@ -382,7 +391,7 @@ public class EventService extends Service
     public void leaveGroupEvent(String eventId, String groupId,
                                 final LeaveEventCallback callback, AccessToken accessToken)
     {
-        JsonRequest scorePost = new JsonRequest(getOnlineLib(),
+        JsonRequest scorePost = new JsonRequest(getRuntime(),
             getLocation() + "/event/" + eventId + "/group/leave",
         new Request.RequestResult()
         {
@@ -410,7 +419,7 @@ public class EventService extends Service
     public void joinEvent(String eventId, float score, JSONObject leaderboardInfo,
                           final JoinEventCallback callback, AccessToken accessToken)
     {
-        JsonRequest scorePost = new JsonRequest(getOnlineLib(),
+        JsonRequest scorePost = new JsonRequest(getRuntime(),
             getLocation() + "/event/" + eventId + "/join",
             new Request.RequestResult()
         {
@@ -445,7 +454,7 @@ public class EventService extends Service
     public void joinGroupEvent(String eventId, String groupId, float score, JSONObject leaderboardInfo,
                           final JoinEventCallback callback, AccessToken accessToken)
     {
-        JsonRequest scorePost = new JsonRequest(getOnlineLib(),
+        JsonRequest scorePost = new JsonRequest(getRuntime(),
                 getLocation() + "/event/" + eventId + "/group/join",
                 new Request.RequestResult()
                 {
@@ -482,7 +491,7 @@ public class EventService extends Service
                                    float score, boolean autoJoin, JSONObject leaderboardInfo,
                                    final PostEventScoreCallback callback, AccessToken accessToken)
     {
-        JsonRequest scorePost = new JsonRequest(getOnlineLib(),
+        JsonRequest scorePost = new JsonRequest(getRuntime(),
             getLocation() + "/event/" + eventId + "/group/score/add",
             new Request.RequestResult()
         {
@@ -529,7 +538,7 @@ public class EventService extends Service
         String eventId, String groupId,
         final GroupProfileParticipantsCallback callback, AccessToken accessToken)
     {
-        currentRequest = new JsonRequest(getOnlineLib(),
+        currentRequest = new JsonRequest(getRuntime(),
             getLocation() + "/event/" + eventId + "/group/participants",
             new Request.RequestResult()
         {
@@ -609,7 +618,7 @@ public class EventService extends Service
             return;
         }
 
-        currentRequest = new JsonRequest(getOnlineLib(), getLocation() + "/events", new Request.RequestResult()
+        currentRequest = new JsonRequest(getRuntime(), getLocation() + "/events", new Request.RequestResult()
         {
             @Override
             public void complete(Request request, Status status)

@@ -1,4 +1,4 @@
-package org.anthillplatform.onlinelib.entity;
+package org.anthillplatform.runtime.entity;
 
 import org.json.JSONObject;
 

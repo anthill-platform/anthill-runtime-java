@@ -1,15 +1,20 @@
-package org.anthillplatform.onlinelib.services;
+package org.anthillplatform.runtime.services;
 
-import org.anthillplatform.onlinelib.OnlineLib;
-import org.anthillplatform.onlinelib.Status;
-import org.anthillplatform.onlinelib.entity.AccessToken;
-import org.anthillplatform.onlinelib.request.JsonRequest;
-import org.anthillplatform.onlinelib.request.Request;
+import org.anthillplatform.runtime.AnthillRuntime;
+import org.anthillplatform.runtime.Status;
+import org.anthillplatform.runtime.entity.AccessToken;
+import org.anthillplatform.runtime.request.JsonRequest;
+import org.anthillplatform.runtime.request.Request;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.util.*;
 
+/**
+ * Social service for Anthill platform
+ *
+ * See https://github.com/anthill-platform/anthill-social
+ */
 public class SocialService extends Service
 {
     public static final String ID = "social";
@@ -19,9 +24,13 @@ public class SocialService extends Service
     public static SocialService get() { return instance; }
     private static void set(SocialService service) { instance = service; }
 
-    public SocialService(OnlineLib onlineLib, String location)
+    /**
+     * Please note that you should not create an instance of the service yourself,
+     * and use SocialService.get() to get existing one instead
+     */
+    public SocialService(AnthillRuntime runtime, String location)
     {
-        super(onlineLib, location, ID, API_VERSION);
+        super(runtime, location, ID, API_VERSION);
 
         set(this);
     }
@@ -275,7 +284,7 @@ public class SocialService extends Service
                          AccessToken accessToken,
                          final GroupGetCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(), getLocation() + "/group/" + groupId,
+        JsonRequest jsonRequest = new JsonRequest(getRuntime(), getLocation() + "/group/" + groupId,
             new Request.RequestResult()
         {
             @Override
@@ -302,7 +311,7 @@ public class SocialService extends Service
                          AccessToken accessToken,
                          final GroupGetProfileCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(), getLocation() + "/group/" + groupId + "/profile",
+        JsonRequest jsonRequest = new JsonRequest(getRuntime(), getLocation() + "/group/" + groupId + "/profile",
             new Request.RequestResult()
         {
             @Override
@@ -346,7 +355,7 @@ public class SocialService extends Service
                                     String accountId,
                                     AccessToken accessToken, final GroupGetParticipationCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(),
+        JsonRequest jsonRequest = new JsonRequest(getRuntime(),
             getLocation() + "/group/" + groupId + "/participation/" + accountId,
             new Request.RequestResult()
         {
@@ -394,7 +403,7 @@ public class SocialService extends Service
                                    boolean merge,
                                    AccessToken accessToken, final GroupUpdateCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(), getLocation() + "/group/" + groupId + "/profile",
+        JsonRequest jsonRequest = new JsonRequest(getRuntime(), getLocation() + "/group/" + groupId + "/profile",
             new Request.RequestResult()
         {
             @Override
@@ -441,7 +450,7 @@ public class SocialService extends Service
         Map<String, JSONObject> profiles, boolean merge,
         AccessToken accessToken, final GroupBatchUpdateCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(), getLocation() + "/groups/profiles",
+        JsonRequest jsonRequest = new JsonRequest(getRuntime(), getLocation() + "/groups/profiles",
             new Request.RequestResult()
         {
             @Override
@@ -508,7 +517,7 @@ public class SocialService extends Service
             JSONObject notify,
             AccessToken accessToken, final GroupUpdateSummaryCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(), getLocation() + "/group/" + groupId,
+        JsonRequest jsonRequest = new JsonRequest(getRuntime(), getLocation() + "/group/" + groupId,
             new Request.RequestResult()
         {
             @Override
@@ -550,7 +559,7 @@ public class SocialService extends Service
             boolean merge,
             AccessToken accessToken, final GroupUpdateParticipantCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(),
+        JsonRequest jsonRequest = new JsonRequest(getRuntime(),
             getLocation() + "/group/" + groupId + "/participation/" + accountId,
             new Request.RequestResult()
         {
@@ -607,7 +616,7 @@ public class SocialService extends Service
             JSONObject notify,
             AccessToken accessToken, final GroupUpdateParticipantPermissionsCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(),
+        JsonRequest jsonRequest = new JsonRequest(getRuntime(),
             getLocation() + "/group/" + groupId + "/participation/" + accountId + "/permissions",
             new Request.RequestResult()
         {
@@ -643,7 +652,7 @@ public class SocialService extends Service
                             boolean enableInGroupMessages,
                             AccessToken accessToken, final GroupCreateCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(), getLocation() + "/groups/create",
+        JsonRequest jsonRequest = new JsonRequest(getRuntime(), getLocation() + "/groups/create",
             new Request.RequestResult()
         {
             @Override
@@ -687,7 +696,7 @@ public class SocialService extends Service
     public void searchGroups(String query,
                              AccessToken accessToken, final GroupSearchCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(), getLocation() + "/groups/search",
+        JsonRequest jsonRequest = new JsonRequest(getRuntime(), getLocation() + "/groups/search",
             new Request.RequestResult()
         {
             @Override
@@ -745,7 +754,7 @@ public class SocialService extends Service
                           JSONObject notify,
                           AccessToken accessToken, final GroupJoinCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(), getLocation() + "/group/" + groupId + "/join",
+        JsonRequest jsonRequest = new JsonRequest(getRuntime(), getLocation() + "/group/" + groupId + "/join",
             new Request.RequestResult()
         {
             @Override
@@ -771,7 +780,7 @@ public class SocialService extends Service
         String groupId, JSONObject participationProfile, JSONObject notify, String key,
         AccessToken accessToken, final GroupJoinCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(),
+        JsonRequest jsonRequest = new JsonRequest(getRuntime(),
             getLocation() + "/group/" + groupId + "/invitation/accept",
             new Request.RequestResult()
         {
@@ -798,7 +807,7 @@ public class SocialService extends Service
         String groupId, JSONObject notify, String key,
         AccessToken accessToken, final GroupJoinCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(),
+        JsonRequest jsonRequest = new JsonRequest(getRuntime(),
             getLocation() + "/group/" + groupId + "/invitation/reject",
             new Request.RequestResult()
         {
@@ -831,7 +840,7 @@ public class SocialService extends Service
                           JSONObject notify,
                           AccessToken accessToken, final GroupLeaveCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(), getLocation() + "/group/" + groupId + "/leave",
+        JsonRequest jsonRequest = new JsonRequest(getRuntime(), getLocation() + "/group/" + groupId + "/leave",
             new Request.RequestResult()
         {
             @Override
@@ -861,7 +870,7 @@ public class SocialService extends Service
                               JSONObject notify,
                               AccessToken accessToken, final GroupKickCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(),
+        JsonRequest jsonRequest = new JsonRequest(getRuntime(),
                 getLocation() + "/group/" + groupId + "/participation/" + accountId,
             new Request.RequestResult()
         {
@@ -888,7 +897,7 @@ public class SocialService extends Service
                                   JSONObject notify,
                                   AccessToken accessToken, final GroupJoinCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(), getLocation() + "/group/" + groupId + "/ownership",
+        JsonRequest jsonRequest = new JsonRequest(getRuntime(), getLocation() + "/group/" + groupId + "/ownership",
             new Request.RequestResult()
         {
             @Override
@@ -916,7 +925,7 @@ public class SocialService extends Service
                                  JSONObject notify,
                                  AccessToken accessToken, final GroupJoinRequestCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(), getLocation() + "/group/" + groupId + "/request",
+        JsonRequest jsonRequest = new JsonRequest(getRuntime(), getLocation() + "/group/" + groupId + "/request",
             new Request.RequestResult()
         {
             @Override
@@ -963,7 +972,7 @@ public class SocialService extends Service
                               JSONObject notify,
                               AccessToken accessToken, final GroupInviteCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(),
+        JsonRequest jsonRequest = new JsonRequest(getRuntime(),
             getLocation() + "/group/" + groupId + "/invite/" + accountId,
             new Request.RequestResult()
         {
@@ -1023,7 +1032,7 @@ public class SocialService extends Service
                             JSONObject notify,
                             AccessToken accessToken, final GroupJoinApproveCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(),
+        JsonRequest jsonRequest = new JsonRequest(getRuntime(),
             getLocation() + "/group/" + groupId + "/approve/" + accountId,
             new Request.RequestResult()
         {
@@ -1067,7 +1076,7 @@ public class SocialService extends Service
                            JSONObject notify,
                            AccessToken accessToken, final GroupJoinApproveCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(),
+        JsonRequest jsonRequest = new JsonRequest(getRuntime(),
             getLocation() + "/group/" + groupId + "/reject/" + accountId,
             new Request.RequestResult()
         {

@@ -1,17 +1,22 @@
-package org.anthillplatform.onlinelib.services;
+package org.anthillplatform.runtime.services;
 
-import org.anthillplatform.onlinelib.request.JsonRequest;
-import org.anthillplatform.onlinelib.OnlineLib;
-import org.anthillplatform.onlinelib.Status;
-import org.anthillplatform.onlinelib.entity.AccessToken;
-import org.anthillplatform.onlinelib.request.Request;
-import org.anthillplatform.onlinelib.util.Utils;
+import org.anthillplatform.runtime.request.JsonRequest;
+import org.anthillplatform.runtime.AnthillRuntime;
+import org.anthillplatform.runtime.Status;
+import org.anthillplatform.runtime.entity.AccessToken;
+import org.anthillplatform.runtime.request.Request;
+import org.anthillplatform.runtime.util.Utils;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.text.SimpleDateFormat;
 import java.util.*;
 
+/**
+ * Monetization service for Anthill platform
+ *
+ * See https://github.com/anthill-platform/anthill-store
+ */
 public class StoreService extends Service
 {
     public static final String ID = "store";
@@ -431,9 +436,13 @@ public class StoreService extends Service
         }
     }
 
-    public StoreService(OnlineLib onlineLib, String location)
+    /**
+     * Please note that you should not create an instance of the service yourself,
+     * and use StoreService.get() to get existing one instead
+     */
+    public StoreService(AnthillRuntime runtime, String location)
     {
-        super(onlineLib, location, ID, API_VERSION);
+        super(runtime, location, ID, API_VERSION);
 
         set(this);
     }
@@ -465,7 +474,7 @@ public class StoreService extends Service
 
     public void getStore(AccessToken accessToken, final String name, final GetStoreCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(), getLocation() + "/store/" + name,
+        JsonRequest jsonRequest = new JsonRequest(getRuntime(), getLocation() + "/store/" + name,
             new Request.RequestResult()
         {
             @Override
@@ -492,7 +501,7 @@ public class StoreService extends Service
             AccessToken accessToken,
             final UpdateOrdersCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(), getLocation() + "/orders",
+        JsonRequest jsonRequest = new JsonRequest(getRuntime(), getLocation() + "/orders",
             new Request.RequestResult()
         {
             @Override
@@ -538,7 +547,7 @@ public class StoreService extends Service
         final long orderId,
         final UpdateOrderCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(), getLocation() + "/order/" +
+        JsonRequest jsonRequest = new JsonRequest(getRuntime(), getLocation() + "/order/" +
             String.valueOf(orderId),
             new Request.RequestResult()
         {
@@ -583,7 +592,7 @@ public class StoreService extends Service
         Map<String, String> environment,
         final NewOrderCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(), getLocation() + "/order/new",
+        JsonRequest jsonRequest = new JsonRequest(getRuntime(), getLocation() + "/order/new",
             new Request.RequestResult()
         {
             @Override

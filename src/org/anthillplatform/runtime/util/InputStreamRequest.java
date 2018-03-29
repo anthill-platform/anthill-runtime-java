@@ -1,15 +1,12 @@
-package org.anthillplatform.onlinelib.util;
+package org.anthillplatform.runtime.util;
 
 import com.mashape.unirest.http.HttpMethod;
 import com.mashape.unirest.request.HttpRequest;
 import com.mashape.unirest.request.body.Body;
-import org.apache.http.Header;
 import org.apache.http.HttpEntity;
 import org.apache.http.entity.InputStreamEntity;
 
-import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 
 public class InputStreamRequest extends HttpRequest
 {

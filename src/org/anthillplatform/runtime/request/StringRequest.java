@@ -1,13 +1,13 @@
-package org.anthillplatform.onlinelib.request;
+package org.anthillplatform.runtime.request;
 
-import org.anthillplatform.onlinelib.OnlineLib;
-import org.anthillplatform.onlinelib.Status;
+import org.anthillplatform.runtime.AnthillRuntime;
+import org.anthillplatform.runtime.Status;
 
 public class StringRequest extends Request
 {
     private String data;
 
-    public StringRequest(OnlineLib onlineLib, String location, RequestResult requestResult)
+    public StringRequest(AnthillRuntime runtime, String location, RequestResult requestResult)
     {
         super(location, requestResult);
     }

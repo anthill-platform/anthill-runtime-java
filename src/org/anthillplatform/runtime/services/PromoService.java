@@ -1,12 +1,17 @@
-package org.anthillplatform.onlinelib.services;
+package org.anthillplatform.runtime.services;
 
-import org.anthillplatform.onlinelib.OnlineLib;
-import org.anthillplatform.onlinelib.Status;
-import org.anthillplatform.onlinelib.entity.AccessToken;
-import org.anthillplatform.onlinelib.request.JsonRequest;
-import org.anthillplatform.onlinelib.request.Request;
+import org.anthillplatform.runtime.AnthillRuntime;
+import org.anthillplatform.runtime.Status;
+import org.anthillplatform.runtime.entity.AccessToken;
+import org.anthillplatform.runtime.request.JsonRequest;
+import org.anthillplatform.runtime.request.Request;
 import org.json.JSONObject;
 
+/**
+ * Promo codes service for Anthill platform
+ *
+ * See https://github.com/anthill-platform/anthill-promo
+ */
 public class PromoService extends Service
 {
     public static final String ID = "promo";
@@ -16,9 +21,13 @@ public class PromoService extends Service
     public static PromoService get() { return instance; }
     private static void set(PromoService service) { instance = service; }
 
-    public PromoService(OnlineLib onlineLib, String location)
+    /**
+     * Please note that you should not create an instance of the service yourself,
+     * and use PromoService.get() to get existing one instead
+     */
+    public PromoService(AnthillRuntime runtime, String location)
     {
-        super(onlineLib, location, ID, API_VERSION);
+        super(runtime, location, ID, API_VERSION);
 
         set(this);
     }
@@ -30,7 +39,7 @@ public class PromoService extends Service
 
     public void usePromoCode(AccessToken accessToken, String promoCode, final PromoCallback profileCallback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(), getLocation() + "/use/" + promoCode,
+        JsonRequest jsonRequest = new JsonRequest(getRuntime(), getLocation() + "/use/" + promoCode,
             new Request.RequestResult()
         {
             @Override

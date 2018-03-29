@@ -1,16 +1,34 @@
-package org.anthillplatform.onlinelib.entity;
+package org.anthillplatform.runtime.entity;
 
+/**
+ * A class that represents information about your application
+ */
 public class ApplicationInfo
 {
+    /**
+     * A link to the environment service
+     *
+     * See https://github.com/anthill-platform/anthill-environment#environment-service
+     */
     private String environmentService;
-    private String gameId;
+
+    /**
+     * gameName and gameVersion identify the application in the environment service
+     */
+    private String gameName;
     private String gameVersion;
+
+    /**
+     * An gamespace alias name
+     *
+     * See https://github.com/anthill-platform/anthill-login#gamespace
+     */
     private String gamespace;
 
-    public ApplicationInfo(String environmentService, String gameId, String gameVersion, String gamespace)
+    public ApplicationInfo(String environmentService, String gameName, String gameVersion, String gamespace)
     {
         this.environmentService = environmentService;
-        this.gameId = gameId;
+        this.gameName = gameName;
         this.gameVersion = gameVersion;
         this.gamespace = gamespace;
     }
@@ -20,9 +38,9 @@ public class ApplicationInfo
         return environmentService;
     }
 
-    public String getGameId()
+    public String getGameName()
     {
-        return gameId;
+        return gameName;
     }
 
     public String getGamespace()
@@ -40,9 +58,9 @@ public class ApplicationInfo
         this.environmentService = environmentService;
     }
 
-    public void setGameId(String gameId)
+    public void setGameName(String gameName)
     {
-        this.gameId = gameId;
+        this.gameName = gameName;
     }
 
     public void setGamespace(String gamespace)

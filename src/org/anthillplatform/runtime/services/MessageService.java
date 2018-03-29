@@ -1,12 +1,12 @@
-package org.anthillplatform.onlinelib.services;
+package org.anthillplatform.runtime.services;
 
-import org.anthillplatform.onlinelib.OnlineLib;
-import org.anthillplatform.onlinelib.Status;
-import org.anthillplatform.onlinelib.entity.AccessToken;
-import org.anthillplatform.onlinelib.request.JsonRequest;
-import org.anthillplatform.onlinelib.request.Request;
-import org.anthillplatform.onlinelib.util.JsonRPC;
-import org.anthillplatform.onlinelib.util.WebSocketJsonRPC;
+import org.anthillplatform.runtime.AnthillRuntime;
+import org.anthillplatform.runtime.Status;
+import org.anthillplatform.runtime.entity.AccessToken;
+import org.anthillplatform.runtime.request.JsonRequest;
+import org.anthillplatform.runtime.request.Request;
+import org.anthillplatform.runtime.util.JsonRPC;
+import org.anthillplatform.runtime.util.WebSocketJsonRPC;
 import org.java_websocket.handshake.ServerHandshake;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -17,11 +17,15 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URLEncoder;
 import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.*;
 
-import static org.anthillplatform.onlinelib.util.Utils.DATE_FORMAT;
+import static org.anthillplatform.runtime.util.Utils.DATE_FORMAT;
 
+/**
+ * A messaging service for Anthill platform
+ *
+ * See https://github.com/anthill-platform/anthill-message
+ */
 public class MessageService extends Service
 {
     public static final String ID = "message";
@@ -47,9 +51,13 @@ public class MessageService extends Service
         void onLastReadMessage(String recipientClass, String recipientKey, Date time, String messageId);
     }
 
-    public MessageService(OnlineLib onlineLib, String location)
+    /**
+     * Please note that you should not create an instance of the service yourself,
+     * and use MessageService.get() to get existing one instead
+     */
+    public MessageService(AnthillRuntime runtime, String location)
     {
-        super(onlineLib, location, ID, API_VERSION);
+        super(runtime, location, ID, API_VERSION);
 
         set(this);
     }
@@ -573,7 +581,7 @@ public class MessageService extends Service
                             int offset, int limit,
                             AccessToken accessToken, final GetMessagesCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(), getLocation() + "/messages",
+        JsonRequest jsonRequest = new JsonRequest(getRuntime(), getLocation() + "/messages",
             new Request.RequestResult()
         {
             @Override
@@ -640,7 +648,7 @@ public class MessageService extends Service
                             int offset, int limit,
                             AccessToken accessToken, final GetMessagesCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(), getLocation() + "/messages",
+        JsonRequest jsonRequest = new JsonRequest(getRuntime(), getLocation() + "/messages",
             new Request.RequestResult()
         {
             @Override
@@ -741,7 +749,7 @@ public class MessageService extends Service
         String groupClass, String groupKey, int limit,
         AccessToken accessToken, final GetMessagesCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(),
+        JsonRequest jsonRequest = new JsonRequest(getRuntime(),
             getLocation() + "/group/" + groupClass + "/" + groupKey,
             new Request.RequestResult()
         {
@@ -794,7 +802,7 @@ public class MessageService extends Service
         String groupClass, String groupKey, int limit,
         AccessToken accessToken, final GetMessagesCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(),
+        JsonRequest jsonRequest = new JsonRequest(getRuntime(),
             getLocation() + "/group/" + groupClass + "/" + groupKey,
             new Request.RequestResult()
         {

@@ -1,16 +1,21 @@
-package org.anthillplatform.onlinelib.services;
+package org.anthillplatform.runtime.services;
 
-import org.anthillplatform.onlinelib.OnlineLib;
-import org.anthillplatform.onlinelib.Status;
-import org.anthillplatform.onlinelib.entity.AccessToken;
-import org.anthillplatform.onlinelib.request.JsonRequest;
-import org.anthillplatform.onlinelib.request.Request;
+import org.anthillplatform.runtime.AnthillRuntime;
+import org.anthillplatform.runtime.Status;
+import org.anthillplatform.runtime.entity.AccessToken;
+import org.anthillplatform.runtime.request.JsonRequest;
+import org.anthillplatform.runtime.request.Request;
 import org.json.JSONObject;
 
 import java.io.InputStream;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Simple static files hosting service (for players to upload)
+ *
+ * See https://github.com/anthill-platform/anthill-static
+ */
 public class StaticService extends Service
 {
     public static final String ID = "static";
@@ -20,9 +25,13 @@ public class StaticService extends Service
     public static StaticService get() { return instance; }
     private static void set(StaticService service) { instance = service; }
 
-    public StaticService(OnlineLib onlineLib, String location)
+    /**
+     * Please note that you should not create an instance of the service yourself,
+     * and use StaticService.get() to get existing one instead
+     */
+    public StaticService(AnthillRuntime runtime, String location)
     {
-        super(onlineLib, location, ID, API_VERSION);
+        super(runtime, location, ID, API_VERSION);
 
         set(this);
     }
@@ -35,7 +44,7 @@ public class StaticService extends Service
     public void uploadFile(InputStream file, String fileName,
                            AccessToken accessToken, final FileUploadCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getOnlineLib(), getLocation() + "/upload",
+        JsonRequest jsonRequest = new JsonRequest(getRuntime(), getLocation() + "/upload",
             new Request.RequestResult()
         {
             @Override

@@ -1,14 +1,20 @@
-package org.anthillplatform.onlinelib.services;
+package org.anthillplatform.runtime.services;
 
-import org.anthillplatform.onlinelib.OnlineLib;
-import org.anthillplatform.onlinelib.Status;
-import org.anthillplatform.onlinelib.request.JsonRequest;
-import org.anthillplatform.onlinelib.request.Request;
+import org.anthillplatform.runtime.AnthillRuntime;
+import org.anthillplatform.runtime.Status;
+import org.anthillplatform.runtime.request.JsonRequest;
+import org.anthillplatform.runtime.request.Request;
+import org.anthillplatform.runtime.util.Utils;
 import org.json.JSONObject;
 
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * A dynamic server discovery service for Anthill platform
+ *
+ * See https://github.com/anthill-platform/anthill-discovery
+ */
 public class DiscoveryService extends Service
 {
     private String environmentName;
@@ -26,9 +32,13 @@ public class DiscoveryService extends Service
         void complete(Status status);
     }
 
-    public DiscoveryService(OnlineLib onlineLib)
+    /**
+     * Please note that you should not create an instance of the service yourself,
+     * and use DiscoveryService.get() to get existing one instead
+     */
+    public DiscoveryService(AnthillRuntime runtime)
     {
-        super(onlineLib, null, null, API_VERSION);
+        super(runtime, null, null, API_VERSION);
 
         set(this);
 
@@ -40,33 +50,28 @@ public class DiscoveryService extends Service
         this.environmentName = environmentName;
     }
 
+    /**
+     * Setups known service into the discovery database
+     *
+     * @param id: the 'id' of the service
+     * @param location: a known http(s)://root URI of the service
+     */
     public void setService(String id, String location)
     {
         this.services.put(id, acquireService(id, location));
     }
 
-    public static String join(String[] items)
-    {
-        StringBuilder sb = new StringBuilder();
-
-        for (String item : items)
-        {
-            if (sb.length() > 0)
-            {
-                sb.append(",");
-            }
-
-            sb.append(item);
-        }
-
-        return sb.toString();
-    }
-
+    /**
+     * Looks up services
+     * @param ids: an array of service's ids too lookup
+     * @param discoveryCallback: the callback that would be called once the services have been found
+     *                           (or not, depending on the status argument in the callback)
+     */
     public void discoverServices(String[] ids, final DiscoveryCallback discoveryCallback)
     {
-        String serviceIds = join(ids);
+        String serviceIds = Utils.join(ids);
 
-        JsonRequest request = new JsonRequest(getOnlineLib(),
+        JsonRequest request = new JsonRequest(getRuntime(),
             getLocation() + "/services/" + serviceIds,
             new Request.RequestResult()
         {
@@ -87,7 +92,8 @@ public class DiscoveryService extends Service
                         if (service1 != null)
                         {
                             DiscoveryService.this.setService(id, serviceLocation);
-                        } else
+                        }
+                        else
                         {
                             discoveryCallback.complete(Status.cannotAcquireService);
                             return;
@@ -110,14 +116,14 @@ public class DiscoveryService extends Service
 
     private Service acquireService(String id, String serviceLocation)
     {
-        OnlineLib.ServiceGen gen = OnlineLib.getGenerator(id);
+        AnthillRuntime.ServiceGen gen = AnthillRuntime.getGenerator(id);
 
         if (gen == null)
         {
-            return new Service(getOnlineLib(), serviceLocation, id, null);
+            return new Service(getRuntime(), serviceLocation, id, null);
         }
 
-        return gen.newService(getOnlineLib(), serviceLocation);
+        return gen.newService(getRuntime(), serviceLocation);
     }
 
     public String getEnvironmentName()

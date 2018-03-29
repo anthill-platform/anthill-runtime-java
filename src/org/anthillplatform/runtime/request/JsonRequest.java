@@ -1,7 +1,7 @@
-package org.anthillplatform.onlinelib.request;
+package org.anthillplatform.runtime.request;
 
 
-import org.anthillplatform.onlinelib.OnlineLib;
+import org.anthillplatform.runtime.AnthillRuntime;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -9,7 +9,7 @@ public class JsonRequest extends Request
 {
     private JSONObject object;
 
-    public JsonRequest(OnlineLib onlineLib, String location, RequestResult requestResult)
+    public JsonRequest(AnthillRuntime runtime, String location, RequestResult requestResult)
     {
         super(location, requestResult);
     }

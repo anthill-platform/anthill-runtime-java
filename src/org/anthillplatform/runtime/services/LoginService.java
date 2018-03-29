@@ -1,16 +1,21 @@
-package org.anthillplatform.onlinelib.services;
+package org.anthillplatform.runtime.services;
 
-import org.anthillplatform.onlinelib.request.JsonRequest;
-import org.anthillplatform.onlinelib.OnlineLib;
-import org.anthillplatform.onlinelib.Status;
-import org.anthillplatform.onlinelib.entity.AccessToken;
-import org.anthillplatform.onlinelib.request.Request;
-import org.anthillplatform.onlinelib.request.StringRequest;
+import org.anthillplatform.runtime.request.JsonRequest;
+import org.anthillplatform.runtime.AnthillRuntime;
+import org.anthillplatform.runtime.Status;
+import org.anthillplatform.runtime.entity.AccessToken;
+import org.anthillplatform.runtime.request.Request;
+import org.anthillplatform.runtime.request.StringRequest;
 import org.json.JSONObject;
 
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * An authentication service for Anthill platform
+ *
+ * See https://github.com/anthill-platform/anthill-login
+ */
 public class LoginService extends Service
 {
     public static final String ID = "login";
@@ -34,9 +39,13 @@ public class LoginService extends Service
         void error(Status status, JSONObject response);
     }
 
-    public LoginService(OnlineLib onlineLib, String location)
+    /**
+     * Please note that you should not create an instance of the service yourself,
+     * and use LoginService.get() to get existing one instead
+     */
+    public LoginService(AnthillRuntime runtime, String location)
     {
-        super(onlineLib, location, ID, API_VERSION);
+        super(runtime, location, ID, API_VERSION);
 
         set(this);
 
@@ -52,7 +61,7 @@ public class LoginService extends Service
     public void auth(String credentialType, String scopes,
                      Map<String, String> options, final AuthCallback callback)
     {
-        JsonRequest request = new JsonRequest(getOnlineLib(), getLocation() + "/auth",
+        JsonRequest request = new JsonRequest(getRuntime(), getLocation() + "/auth",
             new Request.RequestResult()
         {
             @Override
@@ -73,7 +82,7 @@ public class LoginService extends Service
 
         data.put("credential", credentialType);
         data.put("scopes", scopes);
-        data.put("gamespace", getOnlineLib().getApplicationInfo().getGamespace());
+        data.put("gamespace", getRuntime().getApplicationInfo().getGamespace());
         data.put("full", "true");
 
         data.putAll(options);
@@ -84,7 +93,7 @@ public class LoginService extends Service
 
     public void extend(AccessToken token, AccessToken extend, String scopes, final AuthCallback callback)
     {
-        JsonRequest request = new JsonRequest(getOnlineLib(), getLocation() + "/extend",
+        JsonRequest request = new JsonRequest(getRuntime(), getLocation() + "/extend",
             new Request.RequestResult()
         {
             @Override
@@ -155,7 +164,7 @@ public class LoginService extends Service
 
     public void validate(final String token, final AuthCallback callback)
     {
-        StringRequest request = new StringRequest(getOnlineLib(),
+        StringRequest request = new StringRequest(getRuntime(),
                 getLocation() + "/validate",
             new Request.RequestResult()
         {
@@ -182,7 +191,7 @@ public class LoginService extends Service
     public void resolve(String method, String with, String scopes, Map<String, String> options, String resolveToken,
                         final AuthCallback callback)
     {
-        JsonRequest request = new JsonRequest(getOnlineLib(), getLocation() + "/resolve",
+        JsonRequest request = new JsonRequest(getRuntime(), getLocation() + "/resolve",
             new Request.RequestResult()
         {
             @Override
