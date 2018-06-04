@@ -1,8 +1,7 @@
-package org.anthillplatform.runtime.request;
+package org.anthillplatform.runtime.requests;
 
 import com.mashape.unirest.http.HttpMethod;
-import org.anthillplatform.runtime.Status;
-import org.anthillplatform.runtime.entity.AccessToken;
+import org.anthillplatform.runtime.AnthillRuntime;
 import org.anthillplatform.runtime.services.LoginService;
 import com.mashape.unirest.http.Headers;
 import com.mashape.unirest.http.HttpResponse;
@@ -16,22 +15,44 @@ import org.anthillplatform.runtime.util.InputStreamRequest;
 
 import java.io.InputStream;
 import java.util.HashMap;
-import java.util.Map;
 
 public abstract class Request
 {
-    private final RequestResult requestResult;
+    public static class Fields extends HashMap<String, Object> {}
+
+    private final RequestCallback requestCallback;
     private final String location;
-    private Map<String, String> queryArguments;
+    private Fields queryArguments;
     private RequestMethod method;
-    private Map<String, Object> postFields;
+    private Fields postFields;
     private String responseContentType;
-    private AccessToken workingAccessToken;
+    private LoginService.AccessToken workingAccessToken;
     private Headers responseHeaders;
     private InputStream putStream;
     private String APIVersion;
 
-    public void setToken(AccessToken workingAccessToken)
+    public enum Result
+    {
+        success,
+        malformedUrl,
+        notFound,
+        failed,
+        dataCorrupted,
+        badRequest,
+        cannotAcquireService,
+        forbidden,
+        multipleChoices,
+        noDeviceInfo,
+        noInternet,
+        pending,
+        tooManyRequests,
+        banned,
+        serviceUnavailable,
+        gone,
+        conflict
+    }
+
+    public void setToken(LoginService.AccessToken workingAccessToken)
     {
         if (workingAccessToken == null)
             return;
@@ -39,9 +60,9 @@ public abstract class Request
         this.workingAccessToken = workingAccessToken;
 
         if (queryArguments == null)
-            queryArguments = new HashMap<String, String>();
+            queryArguments = new Fields();
 
-        queryArguments.put("access_token", workingAccessToken.getToken());
+        queryArguments.put("access_token", workingAccessToken);
     }
 
     public String getResponseContentType()
@@ -57,21 +78,21 @@ public abstract class Request
         delete
     }
 
-    public interface RequestResult
+    public interface RequestCallback
     {
-        void complete(Request request, Status status);
+        void complete(Request request, Result result);
     }
 
-    public void setQueryArguments(Map<String, String> queryArguments)
+    public void setQueryArguments(Fields queryArguments)
     {
         this.queryArguments = queryArguments;
     }
 
-    public Request(String location, RequestResult requestResult)
+    public Request(String location, RequestCallback requestCallback)
     {
         this.location = location;
 
-        this.requestResult = requestResult;
+        this.requestCallback = requestCallback;
         this.method = RequestMethod.get;
         this.queryArguments = null;
     }
@@ -142,7 +163,7 @@ public abstract class Request
 
         if (queryArguments != null)
         {
-            for (Map.Entry<String, String> entry : queryArguments.entrySet())
+            for (Fields.Entry<String, Object> entry : queryArguments.entrySet())
             {
                 request.queryString(entry.getKey(), entry.getValue());
             }
@@ -172,48 +193,48 @@ public abstract class Request
                 {
                     case 300:
                     {
-                        complete(Status.multipleChoices);
+                        complete(Result.multipleChoices);
                         break;
                     }
 
                     case 404:
                     {
-                        complete(Status.notFound);
+                        complete(Result.notFound);
                         break;
                     }
                     case 410:
                     {
-                        complete(Status.gone);
+                        complete(Result.gone);
                         break;
                     }
                     case 400:
                     {
-                        complete(Status.badRequest);
+                        complete(Result.badRequest);
                         break;
                     }
                     case 429:
                     {
-                        complete(Status.tooManyRequests);
+                        complete(Result.tooManyRequests);
                         break;
                     }
                     case 403:
                     {
-                        complete(Status.forbidden);
+                        complete(Result.forbidden);
                         break;
                     }
                     case 409:
                     {
-                        complete(Status.conflict);
+                        complete(Result.conflict);
                         break;
                     }
                     case 423:
                     {
-                        complete(Status.banned);
+                        complete(Result.banned);
                         break;
                     }
                     case 503:
                     {
-                        complete(Status.serviceUnavailable);
+                        complete(Result.serviceUnavailable);
                         break;
                     }
                     default:
@@ -224,22 +245,24 @@ public abstract class Request
 
                             if (newToken != null)
                             {
-                                LoginService loginService = LoginService.get();
+                                LoginService loginService = AnthillRuntime.Get(LoginService.ID, LoginService.class);
 
+                                /*
                                 if (loginService != null)
                                 {
                                     if (workingAccessToken != null)
                                     {
-                                        workingAccessToken.update(newToken);
+                                        workingAccessToken = loginService.setCurrentAccessToken(newToken);
                                     }
                                 }
+                                */
                             }
 
-                            complete(Status.success);
+                            complete(Result.success);
                         }
                         else
                         {
-                            complete(Status.failed);
+                            complete(Result.failed);
                         }
                     }
                 }
@@ -252,13 +275,13 @@ public abstract class Request
             {
                 e.printStackTrace();
 
-                complete(Status.failed);
+                complete(Result.failed);
             }
 
             @Override
             public void cancelled()
             {
-                complete(Status.failed);
+                complete(Result.failed);
             }
         });
     }
@@ -268,7 +291,7 @@ public abstract class Request
         post(null);
     }
 
-    public void post(Map<String, Object> fields)
+    public void post(Fields fields)
     {
         if (this.postFields == null)
         {
@@ -285,7 +308,7 @@ public abstract class Request
         start();
     }
 
-    public void delete(Map<String, Object> fields)
+    public void delete(Fields fields)
     {
         if (this.postFields == null)
         {
@@ -316,11 +339,11 @@ public abstract class Request
         this.method = method;
     }
 
-    protected void complete(Status status)
+    protected void complete(Result result)
     {
-        if (requestResult != null)
+        if (requestCallback != null)
         {
-            requestResult.complete(this, status);
+            requestCallback.complete(this, result);
         }
     }
 

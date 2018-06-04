@@ -1,9 +1,8 @@
 package org.anthillplatform.runtime.services;
 
 import org.anthillplatform.runtime.AnthillRuntime;
-import org.anthillplatform.runtime.Status;
-import org.anthillplatform.runtime.request.JsonRequest;
-import org.anthillplatform.runtime.request.Request;
+import org.anthillplatform.runtime.requests.JsonRequest;
+import org.anthillplatform.runtime.requests.Request;
 import org.anthillplatform.runtime.util.Utils;
 import org.json.JSONObject;
 
@@ -17,94 +16,68 @@ import java.util.Map;
  */
 public class DiscoveryService extends Service
 {
-    private String environmentName;
-    private Map<String, Service> services;
-
     public static final String ID = "discovery";
     public static final String API_VERSION = "0.2";
 
-    private static DiscoveryService instance;
-    public static DiscoveryService get() { return instance; }
-    private static void set(DiscoveryService service) { instance = service; }
-
-    public interface DiscoveryCallback
+    public interface DiscoveryInfoCallback
     {
-        void complete(Status status);
+        void complete(DiscoveryService service, Request request, Request.Result result,
+                      Map<String, Service> discoveredServices);
     }
 
     /**
      * Please note that you should not create an instance of the service yourself,
-     * and use DiscoveryService.get() to get existing one instead
+     * and use AnthillRuntime.Get(DiscoveryService.ID, DiscoveryService.class) to get existing one instead
      */
-    public DiscoveryService(AnthillRuntime runtime)
+    public DiscoveryService(AnthillRuntime runtime, String location)
     {
-        super(runtime, null, null, API_VERSION);
-
-        set(this);
-
-        this.services = new HashMap<String, Service>();
+        super(runtime, location, ID, API_VERSION);
     }
 
-    public void setEnvironmentName(String environmentName)
+    public static DiscoveryService Get()
     {
-        this.environmentName = environmentName;
-    }
-
-    /**
-     * Setups known service into the discovery database
-     *
-     * @param id: the 'id' of the service
-     * @param location: a known http(s)://root URI of the service
-     */
-    public void setService(String id, String location)
-    {
-        this.services.put(id, acquireService(id, location));
+        return AnthillRuntime.Get(ID, DiscoveryService.class);
     }
 
     /**
      * Looks up services
-     * @param ids: an array of service's ids too lookup
-     * @param discoveryCallback: the callback that would be called once the services have been found
+     * @param services: an array of service's services too lookup
+     * @param callback: the callback that would be called once the services have been found
      *                           (or not, depending on the status argument in the callback)
      */
-    public void discoverServices(String[] ids, final DiscoveryCallback discoveryCallback)
+    public void discoverServices(String[] services, final DiscoveryInfoCallback callback)
     {
-        String serviceIds = Utils.join(ids);
+        String serviceIds = Utils.join(services);
 
-        JsonRequest request = new JsonRequest(getRuntime(),
-            getLocation() + "/services/" + serviceIds,
-            new Request.RequestResult()
+        JsonRequest request = new JsonRequest(
+                getLocation() + "/services/" + serviceIds,
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request1, Status status)
+            public void complete(Request request, Request.Result result)
             {
-                if (status == Status.success)
+                AnthillRuntime anthillRuntime = AnthillRuntime.Get();
+
+                if (result == Request.Result.success)
                 {
-                    JSONObject services = ((JsonRequest) request1).getObject();
+                    Map<String, Service> discoveredServices = new HashMap<String, Service>();
+
+                    JSONObject services = ((JsonRequest) request).getObject();
 
                     for (Object key : services.keySet())
                     {
                         String id = key.toString();
                         String serviceLocation = services.getString(key.toString());
 
-                        Service service1 = DiscoveryService.this.acquireService(id, serviceLocation);
-
-                        if (service1 != null)
-                        {
-                            DiscoveryService.this.setService(id, serviceLocation);
-                        }
-                        else
-                        {
-                            discoveryCallback.complete(Status.cannotAcquireService);
-                            return;
-                        }
+                        Service service = anthillRuntime.setService(id, serviceLocation);
+                        discoveredServices.put(id, service);
                     }
 
-                    discoveryCallback.complete(Status.success);
+                    callback.complete(DiscoveryService.this, request, result, discoveredServices);
                 }
                 else
                 {
-                    discoveryCallback.complete(status);
+                    callback.complete(DiscoveryService.this, request, result, null);
                 }
             }
         });
@@ -114,20 +87,4 @@ public class DiscoveryService extends Service
         request.get();
     }
 
-    private Service acquireService(String id, String serviceLocation)
-    {
-        AnthillRuntime.ServiceGen gen = AnthillRuntime.getGenerator(id);
-
-        if (gen == null)
-        {
-            return new Service(getRuntime(), serviceLocation, id, null);
-        }
-
-        return gen.newService(getRuntime(), serviceLocation);
-    }
-
-    public String getEnvironmentName()
-    {
-        return environmentName;
-    }
 }

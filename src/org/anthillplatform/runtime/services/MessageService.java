@@ -1,10 +1,8 @@
 package org.anthillplatform.runtime.services;
 
 import org.anthillplatform.runtime.AnthillRuntime;
-import org.anthillplatform.runtime.Status;
-import org.anthillplatform.runtime.entity.AccessToken;
-import org.anthillplatform.runtime.request.JsonRequest;
-import org.anthillplatform.runtime.request.Request;
+import org.anthillplatform.runtime.requests.JsonRequest;
+import org.anthillplatform.runtime.requests.Request;
 import org.anthillplatform.runtime.util.JsonRPC;
 import org.anthillplatform.runtime.util.WebSocketJsonRPC;
 import org.java_websocket.handshake.ServerHandshake;
@@ -31,13 +29,9 @@ public class MessageService extends Service
     public static final String ID = "message";
     public static final String API_VERSION = "0.2";
 
-    private static MessageService instance;
-    public static MessageService get() { return instance; }
-    private static void set(MessageService service) { instance = service; }
-
     public interface GetMessagesCallback
     {
-        void complete(MessageDestination replyTo, Status status);
+        void complete(MessageDestination replyTo, Request.Result result);
     }
 
     public interface MessageCallback
@@ -53,13 +47,16 @@ public class MessageService extends Service
 
     /**
      * Please note that you should not create an instance of the service yourself,
-     * and use MessageService.get() to get existing one instead
+     * and use AnthillRuntime.Get(MessageService.ID, MessageService.class) to get existing one instead
      */
     public MessageService(AnthillRuntime runtime, String location)
     {
         super(runtime, location, ID, API_VERSION);
+    }
 
-        set(this);
+    public static MessageService Get()
+    {
+        return AnthillRuntime.Get(ID, MessageService.class);
     }
 
     public static class Message
@@ -164,6 +161,7 @@ public class MessageService extends Service
             void onMessageUpdated(String messageId, String sender, int gamespace, JSONObject payload);
         }
 
+
         private MessageSessionRPC jsonRPC;
         private Listener listener;
         private final Set<String> messageTypes;
@@ -216,6 +214,7 @@ public class MessageService extends Service
             return jsonRPC;
         }
 
+        @SuppressWarnings("BooleanMethodIsAlwaysInverted")
         public boolean isOpen()
         {
             return jsonRPC != null && jsonRPC.isOpen();
@@ -309,10 +308,10 @@ public class MessageService extends Service
             return true;
         }
 
-        public void open(MessageService messageService, AccessToken accessToken)
+        public void open(MessageService messageService, LoginService.AccessToken accessToken)
         {
             HashMap<String, String> args = new HashMap<String, String>();
-            args.put("access_token", accessToken.getToken());
+            args.put("access_token", accessToken.get());
 
             if (messageTypes != null)
             {
@@ -415,7 +414,7 @@ public class MessageService extends Service
             jsonRPC.addHandler("message", new JsonRPC.MethodHandler()
             {
                 @Override
-                public Object called(Object params) throws JsonRPC.JsonRPCException
+                public Object called(Object params)
                 {
                     JSONObject args = ((JSONObject) params);
 
@@ -484,7 +483,7 @@ public class MessageService extends Service
             jsonRPC.addHandler("message_deleted", new JsonRPC.MethodHandler()
             {
                 @Override
-                public Object called(Object params) throws JsonRPC.JsonRPCException
+                public Object called(Object params)
                 {
                     JSONObject args = ((JSONObject) params);
 
@@ -506,7 +505,7 @@ public class MessageService extends Service
             jsonRPC.addHandler("message_updated", new JsonRPC.MethodHandler()
             {
                 @Override
-                public Object called(Object params) throws JsonRPC.JsonRPCException
+                public Object called(Object params)
                 {
                     JSONObject args = ((JSONObject) params);
 
@@ -550,44 +549,51 @@ public class MessageService extends Service
         }
     }
 
-    public MessageSession session(AccessToken accessToken, MessageSession.Listener listener)
+    public MessageSession session(
+        LoginService.AccessToken accessToken, MessageSession.Listener listener)
     {
         return session(accessToken, null, listener);
     }
 
-    public MessageSession session(AccessToken accessToken, Set<String> messageTypes, MessageSession.Listener listener)
+    public MessageSession session(
+        LoginService.AccessToken accessToken,
+        Set<String> messageTypes,
+        MessageSession.Listener listener)
     {
         MessageSession session = new MessageSession(listener, messageTypes);
         session.open(this, accessToken);
         return session;
     }
 
-    public void getMessages(ArrayList<Message> messagesToFill,
-                            ArrayList<LastReadMessage> lastReadMessagesToFill,
-                            AccessToken accessToken, final GetMessagesCallback callback)
+    public void getMessages(
+        ArrayList<Message> messagesToFill,
+        ArrayList<LastReadMessage> lastReadMessagesToFill,
+        LoginService.AccessToken accessToken, final GetMessagesCallback callback)
     {
         getMessages(messagesToFill, lastReadMessagesToFill, 0, 100, accessToken, callback);
     }
 
-    public void getMessages(ArrayList<Message> messagesToFill,
-                            ArrayList<LastReadMessage> lastReadMessagesToFill, int limit,
-                            AccessToken accessToken, final GetMessagesCallback callback)
+    public void getMessages(
+        ArrayList<Message> messagesToFill,
+        ArrayList<LastReadMessage> lastReadMessagesToFill, int limit,
+        LoginService.AccessToken accessToken, final GetMessagesCallback callback)
     {
         getMessages(messagesToFill, lastReadMessagesToFill, 0, limit, accessToken, callback);
     }
 
-    public void getMessages(final ArrayList<Message> messagesToFill,
-                            final ArrayList<LastReadMessage> lastReadMessagesToFill,
-                            int offset, int limit,
-                            AccessToken accessToken, final GetMessagesCallback callback)
+    public void getMessages(
+        final ArrayList<Message> messagesToFill,
+        final ArrayList<LastReadMessage> lastReadMessagesToFill,
+        int offset, int limit,
+        LoginService.AccessToken accessToken, final GetMessagesCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getRuntime(), getLocation() + "/messages",
-            new Request.RequestResult()
+        JsonRequest jsonRequest = new JsonRequest(getLocation() + "/messages",
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result status)
             {
-                if (status == Status.success)
+                if (status == Request.Result.success)
                 {
                     JSONObject response = ((JsonRequest) request).getObject();
 
@@ -595,7 +601,7 @@ public class MessageService extends Service
 
                     if (messages == null)
                     {
-                        callback.complete(null, Status.dataCorrupted);
+                        callback.complete(null, Request.Result.dataCorrupted);
                         return;
                     }
                     else
@@ -616,7 +622,7 @@ public class MessageService extends Service
                         }
                     }
 
-                    callback.complete(null, Status.success);
+                    callback.complete(null, Request.Result.success);
                 }
                 else
                 {
@@ -630,31 +636,34 @@ public class MessageService extends Service
         jsonRequest.get();
     }
 
-    public void getMessages(MessageCallback messageCallback, LastReadMessageCallback lastReadMessageCallback,
-                            AccessToken accessToken, final GetMessagesCallback callback)
+    public void getMessages(
+        MessageCallback messageCallback, LastReadMessageCallback lastReadMessageCallback,
+        LoginService.AccessToken accessToken, final GetMessagesCallback callback)
     {
         getMessages(messageCallback, lastReadMessageCallback, 0, 100, accessToken, callback);
     }
 
-    public void getMessages(MessageCallback messageCallback, LastReadMessageCallback lastReadMessageCallback,
-                            int limit,
-                            AccessToken accessToken, final GetMessagesCallback callback)
+    public void getMessages(
+        MessageCallback messageCallback, LastReadMessageCallback lastReadMessageCallback,
+        int limit,
+        LoginService.AccessToken accessToken, final GetMessagesCallback callback)
     {
         getMessages(messageCallback, lastReadMessageCallback, 0, limit, accessToken, callback);
     }
 
-    public void getMessages(final MessageCallback messageCallback,
-                            final LastReadMessageCallback lastReadMessageCallback,
-                            int offset, int limit,
-                            AccessToken accessToken, final GetMessagesCallback callback)
+    public void getMessages(
+        final MessageCallback messageCallback,
+        final LastReadMessageCallback lastReadMessageCallback,
+        int offset, int limit,
+        LoginService.AccessToken accessToken, final GetMessagesCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getRuntime(), getLocation() + "/messages",
-            new Request.RequestResult()
+        JsonRequest jsonRequest = new JsonRequest(getLocation() + "/messages",
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result status)
             {
-                if (status == Status.success)
+                if (status == Request.Result.success)
                 {
                     JSONObject response = ((JsonRequest) request).getObject();
 
@@ -663,7 +672,7 @@ public class MessageService extends Service
 
                     if (messages == null || replyTo_ == null)
                     {
-                        callback.complete(null, Status.dataCorrupted);
+                        callback.complete(null, Request.Result.dataCorrupted);
                         return;
                     }
                     else
@@ -724,7 +733,7 @@ public class MessageService extends Service
                     }
 
                     MessageDestination replyTo = new MessageDestination(replyTo_);
-                    callback.complete(replyTo, Status.success);
+                    callback.complete(replyTo, Request.Result.success);
                 }
                 else
                 {
@@ -738,25 +747,27 @@ public class MessageService extends Service
         jsonRequest.get();
     }
 
-    public void getGroupMessages(final ArrayList<Message> messagesToFill,
+    public void getGroupMessages(
+        final ArrayList<Message> messagesToFill,
         String groupClass, String groupKey,
-        AccessToken accessToken, final GetMessagesCallback callback)
+        LoginService.AccessToken accessToken, final GetMessagesCallback callback)
     {
         getGroupMessages(messagesToFill, groupClass, groupKey, 100, accessToken, callback);
     }
 
-    public void getGroupMessages(final ArrayList<Message> messagesToFill,
+    public void getGroupMessages(
+        final ArrayList<Message> messagesToFill,
         String groupClass, String groupKey, int limit,
-        AccessToken accessToken, final GetMessagesCallback callback)
+        LoginService.AccessToken accessToken, final GetMessagesCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getRuntime(),
-            getLocation() + "/group/" + groupClass + "/" + groupKey,
-            new Request.RequestResult()
+        JsonRequest jsonRequest = new JsonRequest(
+                getLocation() + "/group/" + groupClass + "/" + groupKey,
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result status)
             {
-                if (status == Status.success)
+                if (status == Request.Result.success)
                 {
                     JSONObject response = ((JsonRequest) request).getObject();
 
@@ -765,7 +776,7 @@ public class MessageService extends Service
 
                     if (messages == null || replyTo_ == null)
                     {
-                        callback.complete(null, Status.dataCorrupted);
+                        callback.complete(null, Request.Result.dataCorrupted);
                         return;
                     }
                     else
@@ -777,7 +788,7 @@ public class MessageService extends Service
                     }
 
                     MessageDestination replyTo = new MessageDestination(replyTo_);
-                    callback.complete(replyTo, Status.success);
+                    callback.complete(replyTo, Request.Result.success);
                 }
                 else
                 {
@@ -791,25 +802,27 @@ public class MessageService extends Service
         jsonRequest.get();
     }
 
-    public void getGroupMessages(final MessageCallback messageCallback,
+    public void getGroupMessages(
+        final MessageCallback messageCallback,
         String groupClass, String groupKey,
-        AccessToken accessToken, final GetMessagesCallback callback)
+        LoginService.AccessToken accessToken, final GetMessagesCallback callback)
     {
         getGroupMessages(messageCallback, groupClass, groupKey, 100, accessToken, callback);
     }
 
-    public void getGroupMessages(final MessageCallback messageCallback,
+    public void getGroupMessages(
+        final MessageCallback messageCallback,
         String groupClass, String groupKey, int limit,
-        AccessToken accessToken, final GetMessagesCallback callback)
+        LoginService.AccessToken accessToken, final GetMessagesCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getRuntime(),
-            getLocation() + "/group/" + groupClass + "/" + groupKey,
-            new Request.RequestResult()
+        JsonRequest jsonRequest = new JsonRequest(
+                getLocation() + "/group/" + groupClass + "/" + groupKey,
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result status)
             {
-                if (status == Status.success)
+                if (status == Request.Result.success)
                 {
                     JSONObject response = ((JsonRequest) request).getObject();
 
@@ -818,7 +831,7 @@ public class MessageService extends Service
 
                     if (messages == null || replyTo_ == null)
                     {
-                        callback.complete(null, Status.dataCorrupted);
+                        callback.complete(null, Request.Result.dataCorrupted);
                         return;
                     }
                     else
@@ -852,7 +865,7 @@ public class MessageService extends Service
                     }
 
                     MessageDestination replyTo = new MessageDestination(replyTo_);
-                    callback.complete(replyTo, Status.success);
+                    callback.complete(replyTo, Request.Result.success);
                 }
                 else
                 {

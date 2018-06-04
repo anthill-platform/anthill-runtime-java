@@ -1,10 +1,8 @@
 package org.anthillplatform.runtime.services;
 
-import org.anthillplatform.runtime.request.JsonRequest;
+import org.anthillplatform.runtime.requests.JsonRequest;
 import org.anthillplatform.runtime.AnthillRuntime;
-import org.anthillplatform.runtime.Status;
-import org.anthillplatform.runtime.entity.AccessToken;
-import org.anthillplatform.runtime.request.Request;
+import org.anthillplatform.runtime.requests.Request;
 import org.anthillplatform.runtime.util.Utils;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -21,10 +19,6 @@ public class StoreService extends Service
 {
     public static final String ID = "store";
     public static final String API_VERSION = "0.2";
-
-    private static StoreService instance;
-    public static StoreService get() { return instance; }
-    private static void set(StoreService service) { instance = service; }
 
     public class Store
     {
@@ -438,56 +432,61 @@ public class StoreService extends Service
 
     /**
      * Please note that you should not create an instance of the service yourself,
-     * and use StoreService.get() to get existing one instead
+     * and use AnthillRuntime.Get(StoreService.ID, StoreService.class) to get existing one instead
      */
     public StoreService(AnthillRuntime runtime, String location)
     {
         super(runtime, location, ID, API_VERSION);
+    }
 
-        set(this);
+    public static StoreService Get()
+    {
+        return AnthillRuntime.Get(ID, StoreService.class);
     }
 
     public interface GetStoreCallback
     {
-        void complete(Store store, Status status);
+        void complete(StoreService service, Request request, Request.Result result, Store store);
     }
 
     public interface NewOrderCallback
     {
-        void complete(long orderId, Status status);
+        void complete(StoreService service, Request request, Request.Result result, long orderId);
     }
 
     public interface UpdateOrderCallback
     {
-        void complete(String store, long orderId, String currency,
+        void complete(StoreService service, Request request, Request.Result result,
+                      String store, long orderId, String currency,
                       int total, JSONObject publicPayload, JSONObject privatePayload, int amount,
-                      String item, Status status);
+                      String item);
     }
 
 
     public interface UpdateOrdersCallback
     {
-        void updated(String store, long orderId, String currency,
+        void updated(StoreService service, Request request, Request.Result result,
+                     String store, long orderId, String currency,
                      int total, JSONObject publicPayload, JSONObject privatePayload, int amount,
-                     String item, Status status);
+                     String item);
     }
 
-    public void getStore(AccessToken accessToken, final String name, final GetStoreCallback callback)
+    public void getStore(LoginService.AccessToken accessToken, final String name, final GetStoreCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getRuntime(), getLocation() + "/store/" + name,
-            new Request.RequestResult()
+        JsonRequest jsonRequest = new JsonRequest(getLocation() + "/store/" + name,
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result result)
             {
-                if (status == Status.success)
+                if (result == Request.Result.success)
                 {
                     Store store = new Store(name);
                     store.parse(((JsonRequest) request).getObject());
-                    callback.complete(store, Status.success);
+                    callback.complete(StoreService.this, request, result, store);
                 } else
                 {
-                    callback.complete(null, status);
+                    callback.complete(StoreService.this, request, result, null);
                 }
             }
         });
@@ -498,22 +497,22 @@ public class StoreService extends Service
     }
 
     public void updateOrders(
-            AccessToken accessToken,
-            final UpdateOrdersCallback callback)
+        LoginService.AccessToken accessToken,
+        final UpdateOrdersCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getRuntime(), getLocation() + "/orders",
-            new Request.RequestResult()
+        JsonRequest jsonRequest = new JsonRequest(getLocation() + "/orders",
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result result)
             {
-                if (status == Status.success)
+                if (result == Request.Result.success)
                 {
-                    JSONObject result = ((JsonRequest) request).getObject();
+                    JSONObject result_ = ((JsonRequest) request).getObject();
 
-                    if (result != null)
+                    if (result_ != null)
                     {
-                        JSONArray orders = result.optJSONArray("orders");
+                        JSONArray orders = result_.optJSONArray("orders");
 
                         for (int i = 0; i < orders.length(); i++)
                         {
@@ -529,8 +528,9 @@ public class StoreService extends Service
                             String store = order.optString("store", "");
                             String item = order.optString("item", "");
 
-                            callback.updated(store, responseOrderId, currency, total,
-                                    publicPayload, privatePayload, amount, item, Status.success);
+                            callback.updated(StoreService.this, request, result,
+                                store, responseOrderId, currency, total,
+                                publicPayload, privatePayload, amount, item);
                         }
                     }
                 }
@@ -543,36 +543,40 @@ public class StoreService extends Service
     }
 
     public void updateOrder(
-        AccessToken accessToken,
+        LoginService.AccessToken accessToken,
         final long orderId,
         final UpdateOrderCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getRuntime(), getLocation() + "/order/" +
+        JsonRequest jsonRequest = new JsonRequest(getLocation() + "/order/" +
             String.valueOf(orderId),
-            new Request.RequestResult()
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result result)
             {
-                if (status == Status.success)
+                if (result == Request.Result.success)
                 {
-                    JSONObject result = ((JsonRequest) request).getObject();
+                    JSONObject result_ = ((JsonRequest) request).getObject();
 
-                    JSONObject publicPayload = result.optJSONObject("public");
-                    JSONObject privatePayload = result.optJSONObject("private");
+                    JSONObject publicPayload = result_.optJSONObject("public");
+                    JSONObject privatePayload = result_.optJSONObject("private");
 
-                    int amount = result.optInt("amount", 1);
-                    long responseOrderId = result.optLong("order_id", -1);
-                    int total = result.optInt("total", 0);
-                    String currency = result.optString("currency", "");
-                    String store = result.optString("store", "");
-                    String item = result.optString("item", "");
+                    int amount = result_.optInt("amount", 1);
+                    long responseOrderId = result_.optLong("order_id", -1);
+                    int total = result_.optInt("total", 0);
+                    String currency = result_.optString("currency", "");
+                    String store = result_.optString("store", "");
+                    String item = result_.optString("item", "");
 
-                    callback.complete(store, responseOrderId, currency, total,
-                            publicPayload, privatePayload, amount, item, Status.success);
-                } else
+                    callback.complete(
+                        StoreService.this, request, result,
+                        store, responseOrderId, currency, total,
+                        publicPayload, privatePayload, amount, item);
+                }
+                else
                 {
-                    callback.complete(null, orderId, null, 0, null, null, 0, null, status);
+                    callback.complete(StoreService.this, request, result,
+                        null, orderId, null, 0, null, null, 0, null);
                 }
             }
         });
@@ -583,7 +587,7 @@ public class StoreService extends Service
     }
 
     public void newOrder(
-        AccessToken accessToken,
+        LoginService.AccessToken accessToken,
         String storeName,
         String item,
         int amount,
@@ -592,25 +596,26 @@ public class StoreService extends Service
         Map<String, String> environment,
         final NewOrderCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getRuntime(), getLocation() + "/order/new",
-            new Request.RequestResult()
+        JsonRequest jsonRequest = new JsonRequest(getLocation() + "/order/new",
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result result)
             {
-                if (status == Status.success)
+                if (result == Request.Result.success)
                 {
-                    JSONObject result = ((JsonRequest) request).getObject();
-                    int orderId = result.optInt("order_id", -1);
-                    callback.complete(orderId, Status.success);
-                } else
+                    JSONObject result_ = ((JsonRequest) request).getObject();
+                    int orderId = result_.optInt("order_id", -1);
+                    callback.complete(StoreService.this, request, result, orderId);
+                }
+                else
                 {
-                    callback.complete(-1, status);
+                    callback.complete(StoreService.this, request, result, 0);
                 }
             }
         });
 
-        Map<String, Object> fields = new HashMap<String, Object>();
+        Request.Fields fields = new Request.Fields();
 
         fields.put("store", storeName);
         fields.put("item", item);

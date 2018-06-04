@@ -10,7 +10,7 @@
 	<groupId>com.github.anthill-platform</groupId>
 	<artifactId>anthill-runtime-java</artifactId>
 	<packaging>jar</packaging>
-	<version>0.1.4</version>
+	<version>0.1.6</version>
 
 	<name>OnlileLib</name>
 	<description>Java Runtime for Anthill Platform</description>
@@ -105,7 +105,7 @@
 		<dependency>
 			<groupId>org.json</groupId>
 			<artifactId>json</artifactId>
-			<version>20140107</version>
+			<version>20180130</version>
 			<scope>compile</scope>
 		</dependency>
 		<dependency>

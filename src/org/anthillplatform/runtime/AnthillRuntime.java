@@ -1,15 +1,18 @@
 package org.anthillplatform.runtime;
 
-import org.anthillplatform.runtime.entity.ApplicationInfo;
-import org.anthillplatform.runtime.request.JsonRequest;
 import com.mashape.unirest.http.Unirest;
-import org.anthillplatform.runtime.request.Request;
 import org.anthillplatform.runtime.services.*;
-import org.json.JSONObject;
+import org.anthillplatform.runtime.util.ApplicationInfo;
+import org.anthillplatform.runtime.util.Listener;
+import org.anthillplatform.runtime.util.Storage;
 
 import java.io.IOException;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.Set;
 
 /**
  * Java Runtime for Anthill Platform
@@ -20,261 +23,175 @@ import java.util.Map;
 public class AnthillRuntime
 {
     private static AnthillRuntime instance;
-    private final HashMap<String, Object> environmentVariables;
+
     private ApplicationInfo applicationInfo;
     private boolean initialized;
-    private DiscoveryService discoveryService;
-    private final String APIVersion;
 
-    public static AnthillRuntime get() { return instance; }
-    private static void set(AnthillRuntime service) { instance = service; }
+    private Map<String, Class> servicesClasses;
+    private Map<String, Service> services;
 
-    private static Map<String, ServiceGen> generators = new HashMap<String, ServiceGen>();
+    private Storage storage;
+    private Listener listener;
 
-    static
-    {
-        generators.put(GameService.ID, new ServiceGen()
-        {
-            @Override
-            public Service newService(AnthillRuntime lib, String serviceLocation)
-            {
-                return new GameService(lib, serviceLocation);
-            }
-        });
-
-        generators.put(DLCService.ID, new ServiceGen()
-        {
-            @Override
-            public Service newService(AnthillRuntime lib, String serviceLocation)
-            {
-                return new DLCService(lib, serviceLocation);
-            }
-        });
-
-        generators.put(LoginService.ID, new ServiceGen()
-        {
-            @Override
-            public Service newService(AnthillRuntime lib, String serviceLocation)
-            {
-                return new LoginService(lib, serviceLocation);
-            }
-        });
-
-        generators.put(ProfileService.ID, new ServiceGen()
-        {
-            @Override
-            public Service newService(AnthillRuntime lib, String serviceLocation)
-            {
-                return new ProfileService(lib, serviceLocation);
-            }
-        });
-
-        generators.put(LeaderboardService.ID, new ServiceGen()
-        {
-            @Override
-            public Service newService(AnthillRuntime lib, String serviceLocation)
-            {
-                return new LeaderboardService(lib, serviceLocation);
-            }
-        });
-
-        generators.put(PromoService.ID, new ServiceGen()
-        {
-            @Override
-            public Service newService(AnthillRuntime lib, String serviceLocation)
-            {
-                return new PromoService(lib, serviceLocation);
-            }
-        });
-
-        generators.put(EventService.ID, new ServiceGen()
-        {
-            @Override
-            public Service newService(AnthillRuntime lib, String serviceLocation)
-            {
-                return new EventService(lib, serviceLocation);
-            }
-        });
-
-        generators.put(MessageService.ID, new ServiceGen()
-        {
-            @Override
-            public Service newService(AnthillRuntime lib, String serviceLocation)
-            {
-                return new MessageService(lib, serviceLocation);
-            }
-        });
-
-        generators.put(StoreService.ID, new ServiceGen()
-        {
-            @Override
-            public Service newService(AnthillRuntime lib, String serviceLocation)
-            {
-                return new StoreService(lib, serviceLocation);
-            }
-        });
-
-        generators.put(SocialService.ID, new ServiceGen()
-        {
-            @Override
-            public Service newService(AnthillRuntime lib, String serviceLocation)
-            {
-                return new SocialService(lib, serviceLocation);
-            }
-        });
-
-        generators.put(StaticService.ID, new ServiceGen()
-        {
-            @Override
-            public Service newService(AnthillRuntime lib, String serviceLocation)
-            {
-                return new StaticService(lib, serviceLocation);
-            }
-        });
-
-        generators.put(ReportService.ID, new ServiceGen()
-        {
-            @Override
-            public Service newService(AnthillRuntime lib, String serviceLocation)
-            {
-                return new ReportService(lib, serviceLocation);
-            }
-        });
-    }
-
-    public static ServiceGen getGenerator(String serviceId)
-    {
-        return generators.get(serviceId);
-    }
+    public static AnthillRuntime Get() { return instance; }
 
     public boolean isInitialized()
     {
         return initialized;
     }
 
-    public DiscoveryService getDiscoveryService()
+    public static AnthillRuntime Create(
+        String environmentLocation,
+        ApplicationInfo applicationInfo,
+        Storage storage,
+        Listener listener)
     {
-        return discoveryService;
+        if (instance != null)
+            return instance;
+
+        instance = new AnthillRuntime(
+            environmentLocation,
+            applicationInfo,
+            storage,
+            listener);
+
+        return instance;
     }
 
-    public interface ServiceGen
+    public static AnthillRuntime Create(
+        String environmentLocation,
+        ApplicationInfo applicationInfo)
     {
-        Service newService(AnthillRuntime lib, String serviceLocation);
+        return Create(environmentLocation, applicationInfo, null, null);
     }
 
-    public interface Callback
+    public static <T extends Service> T Get(String serviceId, Class<T> tClass)
     {
-        void complete(AnthillRuntime lib, Status status);
-    }
+        AnthillRuntime instance = Get();
 
-    public AnthillRuntime(ApplicationInfo applicationInfo, String APIVersion)
-    {
-        set(this);
-
-        Unirest.setTimeouts(60000, 60000);
-
-        this.applicationInfo = applicationInfo;
-
-        this.environmentVariables = new HashMap<String, Object>();
-
-        this.discoveryService = new DiscoveryService(this);
-        this.initialized = false;
-        this.APIVersion = APIVersion;
-    }
-
-    public void init(Callback complete)
-    {
-        if (initialized)
+        if (instance == null)
         {
-            complete.complete(this, Status.success);
+            throw new IllegalStateException("AnthillRuntime is not initialized");
+        }
+
+        return instance.get(serviceId, tClass);
+    }
+
+    public <T extends Service> T get(String serviceId, Class<T> tClass)
+    {
+        Service service = services.get(serviceId);
+
+        if (tClass.isInstance(service))
+        {
+            //noinspection unchecked
+            return (T)service;
+        }
+
+        throw new NoSuchElementException("No such service " + serviceId + " registered, or it is being casted " +
+                "to wrong class.");
+    }
+
+    private <T extends Service> void register(String serviceId, Class<T> tClass)
+    {
+        servicesClasses.put(serviceId, tClass);
+    }
+
+    private void registerServices()
+    {
+        register(DiscoveryService.ID, DiscoveryService.class);
+        register(DLCService.ID, DLCService.class);
+        register(EnvironmentService.ID, EnvironmentService.class);
+        register(EventService.ID, EventService.class);
+        register(GameService.ID, GameService.class);
+        register(LeaderboardService.ID, LeaderboardService.class);
+        register(LoginService.ID, LoginService.class);
+        register(MessageService.ID, MessageService.class);
+        register(ProfileService.ID, ProfileService.class);
+        register(PromoService.ID, PromoService.class);
+        register(ReportService.ID, ReportService.class);
+        register(SocialService.ID, SocialService.class);
+        register(StaticService.ID, StaticService.class);
+        register(StoreService.ID, StoreService.class);
+    }
+
+    public Service setService(String serviceId, String location)
+    {
+        Service existing = services.get(serviceId);
+
+        if (existing != null)
+            return existing;
+
+        @SuppressWarnings("unchecked")
+        Class<Service> tClass = (Class<Service>)servicesClasses.get(serviceId);
+
+        Service newInstance;
+
+        if (tClass == null)
+        {
+            // no class for this ID, then give up to generic "service"
+
+            newInstance = new Service(this, location, location, "0.2");
         }
         else
         {
-            getEnvironmentInfo(complete);
-        }
-    }
+            Constructor<Service> constructor;
 
-    private void getEnvironmentInfo(final Callback complete)
-    {
-        JsonRequest request = new JsonRequest(this,
-            applicationInfo.getEnvironmentService() + "/" + applicationInfo.getGameName() + "/" +
-                applicationInfo.getGameVersion(),
-            new Request.RequestResult()
-        {
-            @Override
-            public void complete(Request request, Status status)
+            try
             {
-                if (status == Status.success)
-                {
-                    JSONObject object = ((JsonRequest) request).getObject();
-
-                    environmentVariables.clear();
-                    for (Object key : object.keySet())
-                    {
-                        environmentVariables.put(key.toString(), object.get(key.toString()));
-                    }
-
-                    try
-                    {
-                        String environmentName = object.optString("name", "");
-                        String discoveryService1 = ((String) object.get("discovery"));
-
-                        setEnvironmentInfo(discoveryService1, environmentName);
-                        complete.complete(AnthillRuntime.this, Status.success);
-                    }
-                    catch (Exception e)
-                    {
-                        e.printStackTrace();
-                        complete.complete(AnthillRuntime.this, Status.dataCorrupted);
-                    }
-                }
-                else
-                {
-                    complete.complete(AnthillRuntime.this, status);
-                }
+                constructor = tClass.getConstructor(AnthillRuntime.class, String.class);
             }
-        });
+            catch (NoSuchMethodException e)
+            {
+                e.printStackTrace();
+                throw new RuntimeException("Failed to acquire service constructor for service " + serviceId);
+            }
 
-        request.setAPIVersion(APIVersion);
 
-        request.get();
-    }
-
-    @SuppressWarnings("unchecked")
-    public <T> T variable(String name, Class<? extends T> clazz)
-    {
-        return (T)environmentVariables.get(name);
-    }
-
-    @SuppressWarnings("unchecked")
-    public <T> T variable(String name, T def, Class<? extends T> clazz)
-    {
-        if (environmentVariables.containsKey(name))
-        {
-            return (T)environmentVariables.get(name);
+            try
+            {
+                newInstance = constructor.newInstance(this, location);
+            }
+            catch (InstantiationException e)
+            {
+                e.printStackTrace();
+                throw new RuntimeException("Failed to acquire instance for service " + serviceId);
+            }
+            catch (IllegalAccessException e)
+            {
+                e.printStackTrace();
+                throw new RuntimeException("Failed to acquire instance for service " + serviceId);
+            }
+            catch (InvocationTargetException e)
+            {
+                e.printStackTrace();
+                throw new RuntimeException("Failed to acquire instance for service " + serviceId);
+            }
         }
 
-        return def;
+        services.put(serviceId, newInstance);
+
+        return newInstance;
     }
 
-    public HashMap<String, Object> getEnvironmentVariables()
+    private AnthillRuntime(
+        String environmentLocation,
+        ApplicationInfo applicationInfo,
+        Storage storage,
+        Listener listener)
     {
-        return environmentVariables;
-    }
+        Unirest.setTimeouts(60000, 60000);
 
-    @SuppressWarnings("WeakerAccess")
-    public void setEnvironmentInfo(String discoveryService, String environmentName)
-    {
-        externallyInitDiscovery(discoveryService, environmentName);
-    }
+        this.applicationInfo = applicationInfo;
+        this.initialized = false;
+        this.services = new HashMap<String, Service>();
+        this.servicesClasses = new HashMap<String, Class>();
 
-    @SuppressWarnings("WeakerAccess")
-    public void externallyInitDiscovery(String discoveryService, String environmentName)
-    {
-        this.initialized = true;
+        this.storage = storage;
+        this.listener = listener;
 
-        this.discoveryService.setLocation(discoveryService);
-        this.discoveryService.setEnvironmentName(environmentName);
+        registerServices();
+
+        setService(EnvironmentService.ID, environmentLocation);
     }
 
     public void release()

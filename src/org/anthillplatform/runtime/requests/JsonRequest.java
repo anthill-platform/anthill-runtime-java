@@ -1,7 +1,6 @@
-package org.anthillplatform.runtime.request;
+package org.anthillplatform.runtime.requests;
 
 
-import org.anthillplatform.runtime.AnthillRuntime;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -9,9 +8,9 @@ public class JsonRequest extends Request
 {
     private JSONObject object;
 
-    public JsonRequest(AnthillRuntime runtime, String location, RequestResult requestResult)
+    public JsonRequest(String location, RequestCallback requestCallback)
     {
-        super(location, requestResult);
+        super(location, requestCallback);
     }
 
     public void parse(String response)

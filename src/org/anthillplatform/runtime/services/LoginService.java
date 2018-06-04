@@ -1,15 +1,14 @@
 package org.anthillplatform.runtime.services;
 
-import org.anthillplatform.runtime.request.JsonRequest;
+import org.anthillplatform.runtime.requests.JsonRequest;
 import org.anthillplatform.runtime.AnthillRuntime;
-import org.anthillplatform.runtime.Status;
-import org.anthillplatform.runtime.entity.AccessToken;
-import org.anthillplatform.runtime.request.Request;
-import org.anthillplatform.runtime.request.StringRequest;
+import org.anthillplatform.runtime.requests.Request;
+import org.anthillplatform.runtime.requests.StringRequest;
+import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.HashSet;
+import java.util.LinkedList;
 
 /**
  * An authentication service for Anthill platform
@@ -21,99 +20,342 @@ public class LoginService extends Service
     public static final String ID = "login";
     public static final String API_VERSION = "0.2";
 
-    private static LoginService instance;
-    public static LoginService get() { return instance; }
-    private static void set(LoginService service) { instance = service; }
+    private static AccessToken nullToken = new AccessToken();
 
     private AccessToken currentAccessToken;
+    private ExternalAuthenticator externalAuthenticator;
 
-    public enum CredentialType
+    public static class Scopes extends HashSet<String>
     {
-        anonymous,
-        dev
+        public static Scopes ALL = new Scopes("*");
+
+        public static Scopes FromString(String scopes)
+        {
+            return new Scopes(scopes.split(","));
+        }
+
+        public Scopes()
+        {
+
+        }
+
+        public Scopes(String ... scopes)
+        {
+            for (String scope : scopes)
+            {
+                add(scope);
+            }
+        }
+
+        public Scopes(JSONArray scopes)
+        {
+            for (int i = 0; i < scopes.length(); i++)
+            {
+                add(scopes.getString(i));
+            }
+        }
+
+        @Override
+        public String toString()
+        {
+            StringBuilder sb = new StringBuilder();
+
+            for (String item : this)
+            {
+                if (sb.length() > 0)
+                {
+                    sb.append(",");
+                }
+
+                sb.append(item);
+            }
+
+            return sb.toString();
+        }
     }
 
-    public interface AuthCallback
+    public static class AccessToken
     {
-        void success(AccessToken token);
-        void error(Status status, JSONObject response);
+        private String raw;
+
+        private AccessToken()
+        {
+            this.raw = "";
+        }
+
+        private AccessToken(String raw)
+        {
+            this.raw = raw;
+        }
+
+        public String get()
+        {
+            return raw;
+        }
+
+        @Override
+        public String toString()
+        {
+            return raw;
+        }
     }
+
+    public static class MergeOption
+    {
+        public String name;
+        public String credential;
+        public String account;
+        public JSONObject profile;
+    }
+
+    public static class MergeOptions extends LinkedList<MergeOption> {}
+
+    public interface MergeResolveCallback
+    {
+        void resolve(MergeOption selectedOption);
+    }
+
+    public interface MergeRequiredCallback
+    {
+        void run(LoginService service, MergeOptions options, MergeResolveCallback resolve);
+    }
+
+    public interface AuthenticationCallback
+    {
+        void complete(
+            LoginService service, Request request, Request.Result result,
+            AccessToken accessToken, String account, String credential, Scopes scopes);
+    }
+
+    public interface ValidationCallback
+    {
+        void complete(
+            LoginService service, Request request, Request.Result result,
+            String account, String credential, Scopes scopes);
+    }
+
+    public static abstract class ExternalAuthenticator
+    {
+        public abstract String getCredentialType();
+
+        public abstract void authenticate(
+            LoginService loginService,
+			String gamespace,
+            LoginService.Scopes scopes,
+			Request.Fields other,
+            LoginService.AuthenticationCallback callback,
+            LoginService.MergeRequiredCallback mergeRequiredCallback,
+            LoginService.Scopes shouldHaveScopes);
+
+        public abstract void attach(
+            LoginService loginService,
+			String gamespace,
+			LoginService.Scopes scopes,
+			Request.Fields other,
+            LoginService.AuthenticationCallback callback,
+            LoginService.MergeRequiredCallback mergeRequiredCallback,
+            LoginService.Scopes shouldHaveScopes);
+    };
 
     /**
      * Please note that you should not create an instance of the service yourself,
-     * and use LoginService.get() to get existing one instead
+     * and use AnthillRuntime.Get(LoginService.ID, LoginService.class) to get existing one instead
      */
     public LoginService(AnthillRuntime runtime, String location)
     {
         super(runtime, location, ID, API_VERSION);
 
-        set(this);
-
         currentAccessToken = null;
     }
 
-    public void auth(CredentialType credentialType, String scopes,
-                     Map<String, String> options, final AuthCallback callback)
+    public static LoginService Get()
     {
-        auth(credentialType.toString(), scopes, options, callback);
+        return AnthillRuntime.Get(ID, LoginService.class);
     }
 
-    public void auth(String credentialType, String scopes,
-                     Map<String, String> options, final AuthCallback callback)
+    public void authenticate(
+        String credentialType,
+        String gamespace,
+        Scopes scopes,
+        Request.Fields other,
+        final AuthenticationCallback callback,
+        MergeRequiredCallback mergeRequiredCallback)
     {
-        JsonRequest request = new JsonRequest(getRuntime(), getLocation() + "/auth",
-            new Request.RequestResult()
+        authenticate(credentialType, gamespace, scopes, other, callback, mergeRequiredCallback, Scopes.ALL);
+    }
+
+    public void authenticate(
+        String credentialType,
+        String gamespace,
+        Scopes scopes,
+        Request.Fields other,
+        final AuthenticationCallback callback,
+        MergeRequiredCallback mergeRequiredCallback,
+        Scopes shouldHaveScopes)
+    {
+        JsonRequest request = new JsonRequest(getLocation() + "/auth",
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request1, Status status)
+            public void complete(Request request, Request.Result result)
             {
-                if (status == Status.success)
+                switch (result)
                 {
-                    JSONObject response = ((JsonRequest) request1).getObject();
-                    callback.success(LoginService.this.parse(response));
-                } else
-                {
-                    callback.error(status, ((JsonRequest) request1).getObject());
+                    case success:
+                    {
+                        JSONObject value = ((JsonRequest) request).getObject();
+
+                        AccessToken accessToken = new AccessToken(value.getString("token"));
+                        Scopes scopes;
+                        String credential = "";
+                        String account = "";
+
+                        if (value.has("scopes"))
+                        {
+                            scopes = new Scopes(value.optJSONArray("scopes"));
+                        }
+                        else
+                        {
+                            scopes = new Scopes();
+                        }
+
+                        if (value.has("credential"))
+                            credential = value.optString("credential");
+
+                        if (value.has("account"))
+                            account = value.optString("account");
+
+                        callback.complete(
+                            LoginService.this, request, result,
+                                accessToken, account, credential, scopes);
+
+                        break;
+                    }
+                    case multipleChoices:
+                    {
+
+
+                        break;
+                    }
+                    default:
+                    {
+                        callback.complete(
+                            LoginService.this, request, result,
+                                nullToken, "", "", new Scopes());
+
+                        break;
+                    }
                 }
             }
         });
 
-        Map<String, Object> data = new HashMap<String, Object>();
+        Request.Fields data = new Request.Fields();
 
         data.put("credential", credentialType);
         data.put("scopes", scopes);
-        data.put("gamespace", getRuntime().getApplicationInfo().getGamespace());
+        data.put("should_have", shouldHaveScopes);
+        data.put("gamespace", getRuntime().getApplicationInfo().gamespace);
         data.put("full", "true");
 
-        data.putAll(options);
+        data.putAll(other);
 
         request.setAPIVersion(getAPIVersion());
         request.post(data);
     }
 
-    public void extend(AccessToken token, AccessToken extend, String scopes, final AuthCallback callback)
+
+    public void attach(
+        AccessToken accessToken,
+        String gamespace,
+        String credentialType,
+        Scopes scopes,
+        Request.Fields other,
+        final AuthenticationCallback callback,
+        MergeRequiredCallback mergeRequiredCallback,
+        Scopes shouldHaveScopes)
     {
-        JsonRequest request = new JsonRequest(getRuntime(), getLocation() + "/extend",
-            new Request.RequestResult()
+        if (other == null)
+        {
+            other = new Request.Fields();
+        }
+
+        other.put("attach_to", accessToken.get());
+
+        authenticate(credentialType, gamespace, scopes, other, callback, mergeRequiredCallback, shouldHaveScopes);
+    }
+
+    public void attach(
+        AccessToken accessToken,
+        String gamespace,
+        String credentialType,
+        Scopes scopes,
+        Request.Fields other,
+        final AuthenticationCallback callback,
+        MergeRequiredCallback mergeRequiredCallback)
+    {
+        if (other == null)
+        {
+            other = new Request.Fields();
+        }
+
+        other.put("attach_to", accessToken.get());
+
+        authenticate(credentialType, gamespace, scopes, other, callback, mergeRequiredCallback);
+    }
+
+    public void extend(
+        AccessToken accessToken,
+        AccessToken extendWith, 
+        LoginService.Scopes scopes, 
+        final AuthenticationCallback callback)
+    {
+        JsonRequest request = new JsonRequest(getLocation() + "/extend",
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request1, Status status)
+            public void complete(Request request, Request.Result result)
             {
-                if (status == Status.success)
+                if (result == Request.Result.success)
                 {
-                    JSONObject response = ((JsonRequest) request1).getObject();
-                    callback.success(LoginService.this.parse(response));
-                } else
+                    JSONObject value = ((JsonRequest) request).getObject();
+
+                    AccessToken accessToken = new AccessToken(value.getString("token"));
+                    Scopes scopes;
+                    String credential = "";
+                    String account = "";
+
+                    if (value.has("scopes"))
+                    {
+                        scopes = new Scopes(value.optJSONArray("scopes"));
+                    }
+                    else
+                    {
+                        scopes = new Scopes();
+                    }
+
+                    if (value.has("credential"))
+                        credential = value.optString("credential");
+
+                    if (value.has("account"))
+                        account = value.optString("account");
+
+                    callback.complete(
+                        LoginService.this, request, result,
+                            accessToken, account, credential, scopes);
+                }
+                else
                 {
-                    callback.error(status, ((JsonRequest) request1).getObject());
+                    callback.complete(
+                        LoginService.this, request, result,
+                            nullToken, "", "", new Scopes());
                 }
             }
         });
 
-        request.setToken(token);
+        request.setToken(accessToken);
 
-        Map<String, Object> data = new HashMap<String, Object>();
-        data.put("extend", extend.getToken());
+        Request.Fields data = new Request.Fields();
+        data.put("extend", extendWith.get());
         data.put("scopes", scopes);
 
         request.setAPIVersion(getAPIVersion());
@@ -125,104 +367,194 @@ public class LoginService extends Service
         return currentAccessToken;
     }
 
-    private AccessToken parse(JSONObject response)
+    public void authAnonymous(
+        String anonymousId,
+        String key,
+        String gamespace,
+        Scopes scopes,
+        Request.Fields other,
+        AuthenticationCallback callback,
+        MergeRequiredCallback mergeRequiredCallback,
+        Scopes shouldHaveScopes)
     {
-        return new AccessToken(response.get("token").toString());
-    }
-
-    public void authAnonymous(String anonymousId, String key, String scopes, Map<String, String> options,
-                              AuthCallback callback)
-    {
-        Map<String, String> _options = new HashMap<String, String>();
+        Request.Fields _options = new Request.Fields();
 
         _options.put("username", anonymousId);
         _options.put("key", key);
 
-        if (options != null)
+        if (other != null)
         {
-            _options.putAll(options);
+            _options.putAll(other);
         }
 
-        auth(CredentialType.anonymous, scopes, _options, callback);
+        authenticate("anonymous", gamespace, scopes, _options, callback, mergeRequiredCallback, shouldHaveScopes);
     }
 
-    public void authDev(String username, String password, String scopes, Map<String, String> options,
-        AuthCallback callback)
+    public void authDev(
+        String username,
+        String password,
+        String gamespace,
+        Scopes scopes,
+        Request.Fields other,
+        AuthenticationCallback callback,
+        MergeRequiredCallback mergeRequiredCallback,
+        Scopes shouldHaveScopes)
     {
-        Map<String, String> _options = new HashMap<String, String>();
+        Request.Fields _options = new Request.Fields();
 
         _options.put("username", username);
         _options.put("key", password);
 
-        if (options != null)
+        if (other != null)
         {
-            _options.putAll(options);
+            _options.putAll(other);
         }
 
-        auth(CredentialType.dev, scopes, _options, callback);
+        authenticate("dev", gamespace, scopes, _options, callback, mergeRequiredCallback, shouldHaveScopes);
     }
 
-    public void validate(final String token, final AuthCallback callback)
+    public void validateAccessToken(
+        final ValidationCallback callback)
     {
-        StringRequest request = new StringRequest(getRuntime(),
-                getLocation() + "/validate",
-            new Request.RequestResult()
+        validateAccessToken(getCurrentAccessToken(), callback);
+    }
+
+    public void validateAccessToken(
+        final AccessToken token,
+        final ValidationCallback callback)
+    {
+        JsonRequest request = new JsonRequest(getLocation() + "/validate",
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request1, Status status)
+            public void complete(Request request, Request.Result result)
             {
-                if (status == Status.success)
+                if (result == Request.Result.success)
                 {
-                    callback.success(new AccessToken(token));
-                } else
+                    JSONObject response = ((JsonRequest) request).getObject();
+
+                    Scopes scopes;
+                    String credential = "";
+                    String account = "";
+
+                    if (response.has("scopes"))
+                    {
+                        scopes = new Scopes(response.optJSONArray("scopes"));
+                    }
+                    else
+                    {
+                        scopes = new Scopes();
+                    }
+
+                    if (response.has("credential"))
+                        credential = response.optString("credential");
+
+                    if (response.has("account"))
+                        account = response.optString("account");
+
+                    callback.complete(LoginService.this, request, result, account, credential, scopes);
+                }
+                else
                 {
-                    callback.error(status, null);
+                    callback.complete(LoginService.this, request, result, "", "", new Scopes());
                 }
             }
         });
 
-        Map<String, String> _options = new HashMap<String, String>();
-
-        _options.put("access_token", token);
-        request.setQueryArguments(_options);
+        request.setToken(token);
         request.get();
     }
 
-    public void resolve(String method, String with, String scopes, Map<String, String> options, String resolveToken,
-                        final AuthCallback callback)
+    public void resolve(
+        AccessToken resolveToken,
+        String methodToResolve,
+        String resolveWith,
+        Scopes scopes,
+        Request.Fields other,
+        final AuthenticationCallback callback)
     {
-        JsonRequest request = new JsonRequest(getRuntime(), getLocation() + "/resolve",
-            new Request.RequestResult()
+        resolve(resolveToken, methodToResolve, resolveWith, scopes, other, callback, Scopes.ALL, null);
+    }
+
+    public void resolve(
+        AccessToken resolveToken,
+        String methodToResolve,
+        String resolveWith,
+        Scopes scopes,
+        Request.Fields other,
+        final AuthenticationCallback callback,
+        Scopes shouldHaveScopes,
+        AccessToken attachTo)
+    {
+        JsonRequest request = new JsonRequest(getLocation() + "/resolve",
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request1, Status status)
+            public void complete(Request request, Request.Result result)
             {
-                if (status == Status.success)
+                if (result == Request.Result.success)
                 {
-                    JSONObject response = ((JsonRequest) request1).getObject();
-                    callback.success(LoginService.this.parse(response));
-                } else
+                    JSONObject response = ((JsonRequest) request).getObject();
+
+                    AccessToken accessToken = new AccessToken(response.getString("token"));
+                    Scopes scopes;
+                    String credential = "";
+                    String account = "";
+
+                    if (response.has("scopes"))
+                    {
+                        scopes = new Scopes(response.optJSONArray("scopes"));
+                    }
+                    else
+                    {
+                        scopes = new Scopes();
+                    }
+
+                    if (response.has("credential"))
+                        credential = response.optString("credential");
+
+                    if (response.has("account"))
+                        account = response.optString("account");
+
+                    callback.complete(
+                        LoginService.this, request, result,
+                            accessToken, account, credential, scopes);
+                }
+                else
                 {
-                    callback.error(status, ((JsonRequest) request1).getObject());
+                    callback.complete(
+                        LoginService.this, request, result,
+                            nullToken, "", "", new Scopes());
                 }
             }
         });
 
-        Map<String, Object> _options = new HashMap<String, Object>();
+        Request.Fields _options = new Request.Fields();
 
         _options.put("scopes", scopes);
         _options.put("full", "true");
-        _options.put("resolve_method", method);
-        _options.put("resolve_with", with);
+        _options.put("resolve_method", methodToResolve);
+        _options.put("resolve_with", resolveWith);
         _options.put("access_token", resolveToken);
+        _options.put("should_have", shouldHaveScopes.toString());
 
-        if (options != null)
+        if (attachTo != null)
         {
-            _options.putAll(options);
+            _options.put("attach_to", attachTo.get());
+        }
+
+        if (other != null)
+        {
+            _options.putAll(other);
         }
 
         request.setAPIVersion(getAPIVersion());
         request.post(_options);
+    }
+
+    public AccessToken newAccessToken(String raw)
+    {
+        return new AccessToken(raw);
     }
 
     public void clearCurrentAccessToken()
@@ -233,5 +565,21 @@ public class LoginService extends Service
     public void setCurrentAccessToken(AccessToken currentAccessToken)
     {
         this.currentAccessToken = currentAccessToken;
+    }
+
+    public AccessToken setCurrentAccessToken(String raw)
+    {
+        this.currentAccessToken = new AccessToken(raw);
+        return this.currentAccessToken;
+    }
+
+    public void setExternalAuthenticator(ExternalAuthenticator externalAuthenticator)
+    {
+        this.externalAuthenticator = externalAuthenticator;
+    }
+
+    public ExternalAuthenticator getExternalAuthenticator()
+    {
+        return externalAuthenticator;
     }
 }

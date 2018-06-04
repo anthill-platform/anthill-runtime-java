@@ -1,23 +1,22 @@
-package org.anthillplatform.runtime.request;
+package org.anthillplatform.runtime.requests;
 
 import org.anthillplatform.runtime.AnthillRuntime;
-import org.anthillplatform.runtime.Status;
 
 public class StringRequest extends Request
 {
     private String data;
 
-    public StringRequest(AnthillRuntime runtime, String location, RequestResult requestResult)
+    public StringRequest(AnthillRuntime runtime, String location, RequestCallback requestCallback)
     {
-        super(location, requestResult);
+        super(location, requestCallback);
     }
 
     @Override
-    protected void complete(Status status)
+    protected void complete(Result result)
     {
-        if (status != Status.success)
+        if (result != Result.success)
         {
-            System.err.println("Service error: " + status.toString());
+            System.err.println("Service error: " + result.toString());
 
             String response = getData();
 
@@ -27,7 +26,7 @@ public class StringRequest extends Request
             }
         }
 
-        super.complete(status);
+        super.complete(result);
     }
 
     @Override

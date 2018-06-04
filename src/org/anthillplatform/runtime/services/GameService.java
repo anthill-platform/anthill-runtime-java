@@ -1,11 +1,9 @@
 package org.anthillplatform.runtime.services;
 
 import org.anthillplatform.runtime.AnthillRuntime;
-import org.anthillplatform.runtime.Status;
-import org.anthillplatform.runtime.entity.AccessToken;
-import org.anthillplatform.runtime.entity.ApplicationInfo;
-import org.anthillplatform.runtime.request.JsonRequest;
-import org.anthillplatform.runtime.request.Request;
+import org.anthillplatform.runtime.util.ApplicationInfo;
+import org.anthillplatform.runtime.requests.JsonRequest;
+import org.anthillplatform.runtime.requests.Request;
 import org.anthillplatform.runtime.util.JsonRPC;
 import org.anthillplatform.runtime.util.WebSocketJsonRPC;
 import org.java_websocket.handshake.ServerHandshake;
@@ -17,10 +15,7 @@ import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URLEncoder;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Game servers hosting & matchmaking service for Anthill platform
@@ -33,14 +28,10 @@ public class GameService extends Service
     public static final String ID = "game";
     public static final String API_VERSION = "0.2";
 
-    private static GameService instance;
-    public static GameService get() { return instance; }
-    private static void set(GameService service) { instance = service; }
-
     public interface JoinGameCallback
     {
         void success(String roomId, String key, String host, int[] ports, JSONObject settings);
-        void fail(Request request, Status status);
+        void fail(Request request, Request.Result result);
     }
 
     public static class JoinMultiSlot
@@ -51,42 +42,43 @@ public class GameService extends Service
 
     public interface ListPlayerRecordsCallback
     {
-        void result(Status status, ArrayList<PlayerRecord> records);
+        void result(GameService service, Request request, Request.Result result, List<PlayerRecord> records);
     }
 
     public interface ListMultiplePlayersRecordsCallback
     {
-        void result(Status status, Map<String, ArrayList<PlayerRecord>> records);
+        void result(GameService service, Request request, Request.Result result,
+                    Map<String, List<PlayerRecord>> records);
     }
 
     public interface JoinGameMultiCallback
     {
         void success(String roomId,
             HashMap<String, JoinMultiSlot> slots, String host, int[] ports, JSONObject settings);
-        void fail(Request request, Status status);
+        void fail(Request request, Request.Result result);
     }
 
     public interface GetPartyCallback
     {
-        void result(Status status, Party party);
+        void result(GameService service, Request request, Request.Result result, Party party);
     }
 
     public interface CreateEmptyPartyCallback
     {
-        void result(Status status, Party party);
+        void result(GameService service, Request request, Request.Result result, Party party);
     }
 
     public interface DeletePartyCallback
     {
-        void result(Status status);
+        void result(GameService service, Request request, Request.Result result);
     }
 
     public static class JoinMultiWrapper
     {
-        public AccessToken accessToken;
+        public LoginService.AccessToken accessToken;
         public String ip;
 
-        public JoinMultiWrapper(AccessToken accessToken, String ip)
+        public JoinMultiWrapper(LoginService.AccessToken accessToken, String ip)
         {
             this.accessToken = accessToken;
             this.ip = ip;
@@ -242,6 +234,7 @@ public class GameService extends Service
             return jsonRPC;
         }
 
+        @SuppressWarnings("BooleanMethodIsAlwaysInverted")
         public boolean isOpen()
         {
             return jsonRPC != null && jsonRPC.isOpen();
@@ -502,7 +495,7 @@ public class GameService extends Service
             jsonRPC.addHandler("message", new JsonRPC.MethodHandler()
             {
                 @Override
-                public Object called(Object params) throws JsonRPC.JsonRPCException
+                public Object called(Object params)
                 {
                     JSONObject args = ((JSONObject) params);
 
@@ -532,7 +525,7 @@ public class GameService extends Service
             jsonRPC.addHandler("party", new JsonRPC.MethodHandler()
             {
                 @Override
-                public Object called(Object params) throws JsonRPC.JsonRPCException
+                public Object called(Object params)
                 {
                     JSONObject args = ((JSONObject) params);
                     JSONObject partyInfo = args.optJSONObject("party_info");
@@ -803,43 +796,44 @@ public class GameService extends Service
         public int players;
     }
 
-    public interface GamesStatusCallback
+    public interface GetGamesStatusCallback
     {
-        void result(boolean success, GamesStatus status);
+        void result(GameService service, Request request, Request.Result result, GamesStatus status);
     }
 
-    public interface FindGamesCallback
+    public interface ListGamesCallback
     {
-        void success(ArrayList<Room> rooms);
-        void fail(Status status);
+        void result(GameService service, Request request, Request.Result result, List<Room> rooms);
     }
 
-    public interface GetRegionsCallback
+    public interface ListRegionsCallback
     {
-        void success(ArrayList<Region> regions, String myRegion);
-        void fail(Status status);
+        void result(GameService service, Request request, Request.Result result, List<Region> regions, String myRegion);
     }
 
     /**
      * Please note that you should not create an instance of the service yourself,
-     * and use GameService.get() to get existing one instead
+     * and use AnthillRuntime.Get(GameService.ID, GameService.class) to get existing one instead
      */
     public GameService(AnthillRuntime runtime, String location)
     {
         super(runtime, location, ID, API_VERSION);
-
-        set(this);
     }
 
-    public void getStatus(final GamesStatusCallback callback)
+    public static GameService Get()
     {
-        JsonRequest jsonRequest = new JsonRequest(getRuntime(), getLocation() + "/status",
-            new Request.RequestResult()
+        return AnthillRuntime.Get(ID, GameService.class);
+    }
+
+    public void getStatus(final GetGamesStatusCallback callback)
+    {
+        JsonRequest jsonRequest = new JsonRequest(getLocation() + "/status",
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result result)
             {
-                if (status == Status.success)
+                if (result == Request.Result.success)
                 {
                     JSONObject response = ((JsonRequest) request).getObject();
 
@@ -847,10 +841,11 @@ public class GameService extends Service
 
                     gamesStatus.players = response.optInt("players", 0);
 
-                    callback.result(true, gamesStatus);
-                } else
+                    callback.result(GameService.this, request, result, gamesStatus);
+                }
+                else
                 {
-                    callback.result(false, null);
+                    callback.result(GameService.this, request, result, null);
                 }
             }
         });
@@ -859,15 +854,15 @@ public class GameService extends Service
         jsonRequest.get();
     }
 
-    public void getRegions(AccessToken accessToken, final GetRegionsCallback callback)
+    public void getRegions(LoginService.AccessToken accessToken, final ListRegionsCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getRuntime(), getLocation() + "/regions",
-            new Request.RequestResult()
+        JsonRequest jsonRequest = new JsonRequest(getLocation() + "/regions",
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result result)
             {
-                if (status == Status.success)
+                if (result == Request.Result.success)
                 {
                     JSONObject response = ((JsonRequest) request).getObject();
 
@@ -876,7 +871,7 @@ public class GameService extends Service
 
                     if (regionsData != null && myRegion != null)
                     {
-                        ArrayList<Region> regions = new ArrayList<Region>();
+                        LinkedList<Region> regions = new LinkedList<Region>();
 
                         for (Object key : regionsData.keySet())
                         {
@@ -887,15 +882,15 @@ public class GameService extends Service
                         }
 
 
-                        callback.success(regions, myRegion);
+                        callback.result(GameService.this, request, result, regions, myRegion);
                     } else
                     {
-                        callback.fail(Status.badRequest);
+                        callback.result(GameService.this, request, result, null, null);
                     }
 
                 } else
                 {
-                    callback.fail(status);
+                    callback.result(GameService.this, request, result, null, null);
                 }
             }
         });
@@ -907,18 +902,18 @@ public class GameService extends Service
         jsonRequest.get();
     }
 
-    public void createGame(String gameServerName, RoomSettings createSettings,
-                           AccessToken accessToken, final JoinGameCallback callback)
+    public void createGame(LoginService.AccessToken accessToken, String gameServerName, RoomSettings createSettings,
+                           final JoinGameCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getRuntime(),
-            getLocation() + "/create/" + getRuntime().getApplicationInfo().getGameName() + "/" + gameServerName + "/" +
-                getRuntime().getApplicationInfo().getGameVersion(),
-            new Request.RequestResult()
+        JsonRequest jsonRequest = new JsonRequest(
+                getLocation() + "/create/" + getRuntime().getApplicationInfo().applicationName + "/" + gameServerName + "/" +
+                getRuntime().getApplicationInfo().applicationVersion,
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result status)
             {
-                if (status == Status.success)
+                if (status == Request.Result.success)
                 {
                     JSONObject response = ((JsonRequest) request).getObject();
 
@@ -944,7 +939,7 @@ public class GameService extends Service
             }
         });
 
-        HashMap<String, Object> fields = new HashMap<String, Object>();
+        Request.Fields fields = new Request.Fields();
 
         fields.put("settings", createSettings.toString());
 
@@ -954,32 +949,40 @@ public class GameService extends Service
 
     }
 
-    public void listGames(String gameServerName, RoomsFilter filter, AccessToken accessToken,
-                          FindGamesCallback callback)
+    public void listGames(
+        LoginService.AccessToken accessToken,
+        String gameServerName, RoomsFilter filter,
+        ListGamesCallback callback)
     {
-        listGames(gameServerName, filter, accessToken, callback, false, true, null);
+        listGames(accessToken, gameServerName, filter, callback, false, true, null);
     }
 
-    public void listGames(String gameServerName, RoomsFilter filter, AccessToken accessToken,
-                          final FindGamesCallback callback, boolean myRegionOnly, boolean showFull, String region)
+    public void listGames(
+        LoginService.AccessToken accessToken,
+        String gameServerName,
+        RoomsFilter filter,
+        final ListGamesCallback callback,
+        boolean myRegionOnly,
+        boolean showFull,
+        String region)
     {
         ApplicationInfo applicationInfo = getRuntime().getApplicationInfo();
 
-        JsonRequest jsonRequest = new JsonRequest(getRuntime(),
-            getLocation() + "/rooms/" + applicationInfo.getGameName() + "/" + gameServerName + "/" +
-                applicationInfo.getGameVersion(),
-            new Request.RequestResult()
+        JsonRequest jsonRequest = new JsonRequest(
+            getLocation() + "/rooms/" + applicationInfo.applicationName + "/" + gameServerName + "/" +
+            applicationInfo.applicationVersion,
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result result)
             {
-                if (status == Status.success)
+                if (result == Request.Result.success)
                 {
                     JSONObject response = ((JsonRequest) request).getObject();
 
                     JSONArray roomsData = response.getJSONArray("rooms");
 
-                    ArrayList<Room> rooms = new ArrayList<Room>();
+                    LinkedList<Room> rooms = new LinkedList<Room>();
 
                     for (int i = 0; i < roomsData.length(); i++)
                     {
@@ -987,15 +990,15 @@ public class GameService extends Service
                         rooms.add(new Room(roomData));
                     }
 
-                    callback.success(rooms);
+                    callback.result(GameService.this, request, result, rooms);
                 } else
                 {
-                    callback.fail(status);
+                    callback.result(GameService.this, request, result, null);
                 }
             }
         });
 
-        HashMap<String, String> fields = new HashMap<String, String>();
+        Request.Fields fields = new Request.Fields();
 
         fields.put("settings", filter.toString());
         fields.put("show_full", showFull ? "true" : "false");
@@ -1014,16 +1017,16 @@ public class GameService extends Service
 
     }
 
-    public void joinGame(String roomId, AccessToken accessToken, final JoinGameCallback callback)
+    public void joinGame(LoginService.AccessToken accessToken, String roomId, final JoinGameCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getRuntime(),
-            getLocation() + "/room/" + getRuntime().getApplicationInfo().getGameName() + "/" + roomId + "/join",
-            new Request.RequestResult()
+        JsonRequest jsonRequest = new JsonRequest(
+                getLocation() + "/room/" + getRuntime().getApplicationInfo().applicationName + "/" + roomId + "/join",
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result status)
             {
-                if (status == Status.success)
+                if (status == Request.Result.success)
                 {
                     JSONObject response = ((JsonRequest) request).getObject();
 
@@ -1033,7 +1036,7 @@ public class GameService extends Service
 
                     if (location == null)
                     {
-                        callback.fail(request, Status.failed);
+                        callback.fail(request, Request.Result.failed);
                         return;
                     }
 
@@ -1061,23 +1064,26 @@ public class GameService extends Service
     }
 
     public void joinGameMulti(
-            ArrayList<JoinMultiWrapper> players,
-            String gameServerName, RoomsFilter filer, boolean autoCreate, boolean myRegionOnly,
-            RoomSettings createSettings,
-            AccessToken accessToken,
-            final JoinGameMultiCallback callback)
+        LoginService.AccessToken accessToken,
+        ArrayList<JoinMultiWrapper> players,
+        String gameServerName,
+        RoomsFilter filer,
+        boolean autoCreate,
+        boolean myRegionOnly,
+        RoomSettings createSettings,
+        final JoinGameMultiCallback callback)
     {
         ApplicationInfo applicationInfo = getRuntime().getApplicationInfo();
 
-        JsonRequest jsonRequest = new JsonRequest(getRuntime(),
-            getLocation() + "/join/multi/" + applicationInfo.getGameName() + "/" + gameServerName + "/" +
-                applicationInfo.getGameVersion(),
-            new Request.RequestResult()
+        JsonRequest jsonRequest = new JsonRequest(
+            getLocation() + "/join/multi/" + applicationInfo.applicationName + "/" + gameServerName + "/" +
+            applicationInfo.applicationVersion,
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result status)
             {
-                if (status == Status.success)
+                if (status == Request.Result.success)
                 {
                     JSONObject response = ((JsonRequest) request).getObject();
 
@@ -1086,7 +1092,7 @@ public class GameService extends Service
 
                     if (location == null)
                     {
-                        callback.fail(request, Status.failed);
+                        callback.fail(request, Request.Result.failed);
                         return;
                     }
 
@@ -1104,7 +1110,7 @@ public class GameService extends Service
 
                     if (slots == null)
                     {
-                        callback.fail(request, Status.failed);
+                        callback.fail(request, Request.Result.failed);
                         return;
                     }
 
@@ -1140,14 +1146,14 @@ public class GameService extends Service
             }
         });
 
-        HashMap<String, Object> fields = new HashMap<String, Object>();
+        Request.Fields fields = new Request.Fields();
 
         JSONArray accounts = new JSONArray();
 
         for (JoinMultiWrapper player : players)
         {
             JSONObject wrapped = new JSONObject();
-            wrapped.put("token", player.accessToken.getToken());
+            wrapped.put("token", player.accessToken.get());
             wrapped.put("ip", player.ip);
 
             accounts.put(wrapped);
@@ -1169,29 +1175,32 @@ public class GameService extends Service
 
     }
 
-    public void joinGame(String gameServerName, RoomsFilter filer,
-                         boolean autoCreate, RoomSettings createSettings,
-                         AccessToken accessToken, JoinGameCallback callback)
+    public void joinGame(
+        LoginService.AccessToken accessToken, String gameServerName, RoomsFilter filer,
+        boolean autoCreate, RoomSettings createSettings,
+        JoinGameCallback callback)
     {
-        joinGame(gameServerName, filer, autoCreate, createSettings, accessToken, callback, true, null);
+        joinGame(accessToken, gameServerName, filer, autoCreate, createSettings, callback, true, null);
     }
 
-    public void joinGame(String gameServerName, RoomsFilter filer,
-                         boolean autoCreate, RoomSettings createSettings,
-                         AccessToken accessToken, final JoinGameCallback callback,
-                         boolean myRegionOnly, String region)
+    public void joinGame(
+        LoginService.AccessToken accessToken,
+        String gameServerName, RoomsFilter filer,
+        boolean autoCreate, RoomSettings createSettings,
+        final JoinGameCallback callback,
+        boolean myRegionOnly, String region)
     {
         ApplicationInfo applicationInfo = getRuntime().getApplicationInfo();
 
-        JsonRequest jsonRequest = new JsonRequest(getRuntime(),
-            getLocation() + "/join/" + applicationInfo.getGameName() + "/" + gameServerName + "/" +
-                applicationInfo.getGameVersion(),
-            new Request.RequestResult()
+        JsonRequest jsonRequest = new JsonRequest(
+            getLocation() + "/join/" + applicationInfo.applicationName + "/" + gameServerName + "/" +
+            applicationInfo.applicationVersion,
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result status)
             {
-                if (status == Status.success)
+                if (status == Request.Result.success)
                 {
                     JSONObject response = ((JsonRequest) request).getObject();
 
@@ -1201,7 +1210,7 @@ public class GameService extends Service
 
                     if (location == null)
                     {
-                        callback.fail(request, Status.failed);
+                        callback.fail(request, Request.Result.failed);
                         return;
                     }
 
@@ -1224,7 +1233,7 @@ public class GameService extends Service
         });
 
 
-        HashMap<String, Object> fields = new HashMap<String, Object>();
+        Request.Fields fields = new Request.Fields();
 
         fields.put("settings", filer.toString());
         fields.put("auth_create", autoCreate ? "true" : "false");
@@ -1246,69 +1255,69 @@ public class GameService extends Service
 
     }
 
-    public void listAccountRecords(String accountId,
-                                   AccessToken accessToken,
-                                   final ListPlayerRecordsCallback callback)
+    public void listAccountRecords(
+        LoginService.AccessToken accessToken,
+        String accountId,
+        final ListPlayerRecordsCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getRuntime(),
-                getLocation() + "/player/" + accountId,
-                new Request.RequestResult()
+        JsonRequest jsonRequest = new JsonRequest(getLocation() + "/player/" + accountId,
+            new Request.RequestCallback()
+        {
+            @Override
+            public void complete(Request request, Request.Result result)
+            {
+                if (result == Request.Result.success)
                 {
-                    @Override
-                    public void complete(Request request, Status status)
+                    JSONObject response = ((JsonRequest) request).getObject();
+
+                    JSONArray records = response.getJSONArray("records");
+
+                    List<PlayerRecord> recordsResult = new ArrayList<PlayerRecord>();
+
+                    for (int i = 0; i < records.length(); i++)
                     {
-                        if (status == Status.success)
-                        {
-                            JSONObject response = ((JsonRequest) request).getObject();
-
-                            JSONArray records = response.getJSONArray("records");
-
-                            ArrayList<PlayerRecord> recordsResult = new ArrayList<PlayerRecord>();
-
-                            for (int i = 0; i < records.length(); i++)
-                            {
-                                JSONObject record = records.getJSONObject(i);
-                                recordsResult.add(new PlayerRecord(record));
-                            }
-
-                            callback.result(status, recordsResult);
-                        }
-                        else
-                        {
-                            callback.result(status, null);
-                        }
+                        JSONObject record = records.getJSONObject(i);
+                        recordsResult.add(new PlayerRecord(record));
                     }
-                });
+
+                    callback.result(GameService.this, request, result, recordsResult);
+                }
+                else
+                {
+                    callback.result(GameService.this, request, result, null);
+                }
+            }
+        });
 
         jsonRequest.setAPIVersion(getAPIVersion());
         jsonRequest.setToken(accessToken);
         jsonRequest.get();
     }
 
-    public void listMultipleAccountsRecords(ArrayList<String> accountIds,
-                                            AccessToken accessToken,
-                                            final ListMultiplePlayersRecordsCallback callback)
+    public void listMultipleAccountsRecords(
+        LoginService.AccessToken accessToken,
+        List<String> accountIds,
+        final ListMultiplePlayersRecordsCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getRuntime(),
-            getLocation() + "/players",
-        new Request.RequestResult()
+        JsonRequest jsonRequest = new JsonRequest(getLocation() + "/players",
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result result)
             {
-                if (status == Status.success)
+                if (result == Request.Result.success)
                 {
                     JSONObject response = ((JsonRequest) request).getObject();
 
                     JSONObject records = response.optJSONObject("records");
-                    HashMap<String, ArrayList<PlayerRecord>> result = new HashMap<String, ArrayList<PlayerRecord>>();
+                    HashMap<String, List<PlayerRecord>> result_ = new HashMap<String, List<PlayerRecord>>();
 
                     for (Object o : records.keySet())
                     {
                         String accountId = o.toString();
                         JSONArray accountRecords = records.optJSONArray(accountId);
 
-                        ArrayList<PlayerRecord> accountRecordsResult = new ArrayList<PlayerRecord>();
+                        List<PlayerRecord> accountRecordsResult = new ArrayList<PlayerRecord>();
 
                         for (int i = 0; i < accountRecords.length(); i++)
                         {
@@ -1316,19 +1325,19 @@ public class GameService extends Service
                             accountRecordsResult.add(new PlayerRecord(record));
                         }
 
-                        result.put(accountId, accountRecordsResult);
+                        result_.put(accountId, accountRecordsResult);
                     }
 
-                    callback.result(status, result);
+                    callback.result(GameService.this, request, result, result_);
                 }
                 else
                 {
-                    callback.result(status, null);
+                    callback.result(GameService.this, request, result, null);
                 }
             }
         });
 
-        HashMap<String, String> fields = new HashMap<String, String>();
+        Request.Fields fields = new Request.Fields();
 
         JSONArray accounts = new JSONArray();
 
@@ -1346,21 +1355,29 @@ public class GameService extends Service
     }
 
     public void createParty(
-        String gameServerName, JSONObject partySettings, JSONObject roomSettings, JSONObject roomFilters,
-        int maxMembers, String region, boolean autoStart, boolean autoClose, String closeCallback,
-        AccessToken accessToken, final CreateEmptyPartyCallback callback)
+        LoginService.AccessToken accessToken,
+        String gameServerName,
+        JSONObject partySettings,
+        JSONObject roomSettings,
+        JSONObject roomFilters,
+        int maxMembers,
+        String region,
+        boolean autoStart,
+        boolean autoClose,
+        String closeCallback,
+        final CreateEmptyPartyCallback callback)
     {
         ApplicationInfo applicationInfo = getRuntime().getApplicationInfo();
 
-        JsonRequest jsonRequest = new JsonRequest(getRuntime(),
-            getLocation() + "/party/create/" +
-            applicationInfo.getGameName() + "/" + applicationInfo.getGameVersion() + "/" + gameServerName,
-            new Request.RequestResult()
+        JsonRequest jsonRequest = new JsonRequest(
+            getLocation() + "/party/create/" + applicationInfo.applicationName + "/" +
+                applicationInfo.applicationVersion + "/" + gameServerName,
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result result)
             {
-                if (status == Status.success)
+                if (result == Request.Result.success)
                 {
                     JSONObject response = ((JsonRequest) request).getObject();
                     JSONObject party_ = response.optJSONObject("party");
@@ -1375,16 +1392,16 @@ public class GameService extends Service
                         party = null;
                     }
 
-                    callback.result(status, party);
+                    callback.result(GameService.this, request, result, party);
                 }
                 else
                 {
-                    callback.result(status, null);
+                    callback.result(GameService.this, request, result, null);
                 }
             }
         });
 
-        HashMap<String, Object> args = new HashMap<String, Object>();
+        Request.Fields args = new Request.Fields();
         args.put("max_members", String.valueOf(maxMembers));
         args.put("auto_start", autoStart ? "true" : "false");
         args.put("auto_close", autoClose ? "true" : "false");
@@ -1406,23 +1423,25 @@ public class GameService extends Service
 
     }
 
-    public void closeParty(String partyId, JSONObject message,
-                           AccessToken accessToken, final DeletePartyCallback callback)
+    public void closeParty(
+        LoginService.AccessToken accessToken,
+        String partyId,
+        JSONObject message,
+        final DeletePartyCallback callback)
     {
         ApplicationInfo applicationInfo = getRuntime().getApplicationInfo();
 
-        JsonRequest jsonRequest = new JsonRequest(getRuntime(),
-            getLocation() + "/party/" + partyId,
-            new Request.RequestResult()
+        JsonRequest jsonRequest = new JsonRequest(getLocation() + "/party/" + partyId,
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result result)
             {
-                callback.result(status);
+                callback.result(GameService.this, request, result);
             }
         });
 
-        HashMap<String, Object> args = new HashMap<String, Object>();
+        Request.Fields args = new Request.Fields();
         args.put("message", message.toString());
 
         jsonRequest.setAPIVersion(getAPIVersion());
@@ -1430,19 +1449,20 @@ public class GameService extends Service
         jsonRequest.delete(args);
     }
 
-    public void getParty(String partyId,
-                         AccessToken accessToken, final GetPartyCallback callback)
+    public void getParty(
+        LoginService.AccessToken accessToken,
+        String partyId,
+        final GetPartyCallback callback)
     {
         ApplicationInfo applicationInfo = getRuntime().getApplicationInfo();
 
-        JsonRequest jsonRequest = new JsonRequest(getRuntime(),
-            getLocation() + "/party/" + partyId,
-            new Request.RequestResult()
+        JsonRequest jsonRequest = new JsonRequest(getLocation() + "/party/" + partyId,
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result result)
             {
-                if (status == Status.success)
+                if (result == Request.Result.success)
                 {
                     JSONObject response = ((JsonRequest) request).getObject();
                     JSONObject party_ = response.optJSONObject("party");
@@ -1457,11 +1477,11 @@ public class GameService extends Service
                         party = null;
                     }
 
-                    callback.result(status, party);
+                    callback.result(GameService.this, request, result, party);
                 }
                 else
                 {
-                    callback.result(status, null);
+                    callback.result(GameService.this, request, result, null);
                 }
             }
         });
@@ -1472,7 +1492,7 @@ public class GameService extends Service
     }
 
     public PartySession openNewPartySession(
-        String gameServerName, AccessToken accessToken, PartySession.Listener listener)
+        String gameServerName, LoginService.AccessToken accessToken, PartySession.Listener listener)
     {
         return openNewPartySession(gameServerName, null, null, null, null, 8, null, null,
             true, true, true, accessToken, listener);
@@ -1482,7 +1502,7 @@ public class GameService extends Service
             String gameServerName, JSONObject partySettings, JSONObject roomSettings, JSONObject roomFilters,
             JSONObject memberProfile, int maxMembers, String region,
             String closeCallback, boolean autoJoin, boolean autoStart, boolean autoClose,
-            AccessToken accessToken, PartySession.Listener listener)
+            LoginService.AccessToken accessToken, PartySession.Listener listener)
     {
         ApplicationInfo applicationInfo = getRuntime().getApplicationInfo();
 
@@ -1506,19 +1526,20 @@ public class GameService extends Service
         if (closeCallback != null)
             args.put("close_callback", closeCallback);
 
-        args.put("access_token", accessToken.getToken());
+        args.put("access_token", accessToken.get());
 
         PartySession partySession = new PartySession(listener);
         partySession.open(
             getLocation() + "/party/create/" +
-            applicationInfo.getGameName() + "/" + applicationInfo.getGameVersion() + "/" + gameServerName + "/session",
+            applicationInfo.applicationName + "/" + applicationInfo.applicationVersion +
+                "/" + gameServerName + "/session",
             args);
 
         return partySession;
     }
 
     public PartySession openExistingPartySession(
-        String partyId, AccessToken accessToken, PartySession.Listener listener)
+        String partyId, LoginService.AccessToken accessToken, PartySession.Listener listener)
     {
         return openExistingPartySession(partyId, null, null, true, accessToken, listener);
     }
@@ -1526,7 +1547,7 @@ public class GameService extends Service
     public PartySession openExistingPartySession(
         String partyId, JSONObject memberProfile, JSONObject checkMembers,
         boolean autoJoin,
-        AccessToken accessToken, PartySession.Listener listener)
+        LoginService.AccessToken accessToken, PartySession.Listener listener)
     {
         ApplicationInfo applicationInfo = getRuntime().getApplicationInfo();
 
@@ -1538,7 +1559,7 @@ public class GameService extends Service
             args.put("check_members", checkMembers.toString());
 
         args.put("auto_join", autoJoin ? "true" : "false");
-        args.put("access_token", accessToken.getToken());
+        args.put("access_token", accessToken.get());
 
         PartySession partySession = new PartySession(listener);
         partySession.open(

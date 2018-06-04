@@ -1,10 +1,8 @@
 package org.anthillplatform.runtime.services;
 
 import org.anthillplatform.runtime.AnthillRuntime;
-import org.anthillplatform.runtime.Status;
-import org.anthillplatform.runtime.entity.AccessToken;
-import org.anthillplatform.runtime.request.JsonRequest;
-import org.anthillplatform.runtime.request.Request;
+import org.anthillplatform.runtime.requests.JsonRequest;
+import org.anthillplatform.runtime.requests.Request;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -20,104 +18,106 @@ public class SocialService extends Service
     public static final String ID = "social";
     public static final String API_VERSION = "0.2";
 
-    private static SocialService instance;
-    public static SocialService get() { return instance; }
-    private static void set(SocialService service) { instance = service; }
-
     /**
      * Please note that you should not create an instance of the service yourself,
-     * and use SocialService.get() to get existing one instead
+     * and use AnthillRuntime.Get(SocialService.ID, SocialService.class) to get existing one instead
      */
     public SocialService(AnthillRuntime runtime, String location)
     {
         super(runtime, location, ID, API_VERSION);
+    }
 
-        set(this);
+    public static SocialService Get()
+    {
+        return AnthillRuntime.Get(ID, SocialService.class);
     }
 
     public interface GroupGetCallback
     {
-        void complete(Group group, Status status);
+        void complete(SocialService service, Request request, Request.Result result, Group group);
     }
 
     public interface GroupGetProfileCallback
     {
-        void complete(JSONObject profile, boolean participant, Status status);
+        void complete(SocialService service, Request request, Request.Result result,
+                      JSONObject profile, boolean participant);
     }
 
     public interface GroupGetParticipationCallback
     {
-        void complete(Group.Participant participant, boolean owner, Status status);
+        void complete(SocialService service, Request request, Request.Result result,
+                      Group.Participant participant, boolean owner);
     }
 
     public interface GroupUpdateCallback
     {
-        void complete(JSONObject updatedProfile, Status status);
+        void complete(SocialService service, Request request, Request.Result result, JSONObject updatedProfile);
     }
 
     public interface GroupBatchUpdateCallback
     {
-        void complete(Map<String, JSONObject> updatedProfiles, Status status);
+        void complete(SocialService service, Request request, Request.Result result,
+                      Map<String, JSONObject> updatedProfiles);
     }
 
     public interface GroupUpdateParticipantCallback
     {
-        void complete(JSONObject updatedProfile, Status status);
+        void complete(SocialService service, Request request, Request.Result result, JSONObject updatedProfile);
     }
 
     public interface GroupUpdateParticipantPermissionsCallback
     {
-        void complete(Status status);
+        void complete(SocialService service, Request request, Request.Result result);
     }
 
     public interface GroupJoinCallback
     {
-        void complete(Status status);
+        void complete(SocialService service, Request request, Request.Result result);
     }
 
     public interface GroupUpdateSummaryCallback
     {
-        void complete(Status status);
+        void complete(SocialService service, Request request, Request.Result result);
     }
 
     public interface GroupJoinRequestCallback
     {
-        void complete(String key, Status status);
+        void complete(SocialService service, Request request, Request.Result result, String key);
     }
 
     public interface GroupInviteCallback
     {
-        void complete(String key, Status status);
+        void complete(SocialService service, Request request, Request.Result result, String key);
     }
 
     public interface GroupJoinApproveCallback
     {
-        void complete(Status status);
+        void complete(SocialService service, Request request, Request.Result result);
     }
 
     public interface GroupJoinRejectCallback
     {
-        void complete(Status status);
+        void complete(SocialService service, Request request, Request.Result result);
     }
 
     public interface GroupLeaveCallback
     {
-        void complete(Status status);
+        void complete(SocialService service, Request request, Request.Result result);
     }
 
     public interface GroupKickCallback
     {
-        void complete(Status status);
+        void complete(SocialService service, Request request, Request.Result result);
     }
 
     public interface GroupCreateCallback
     {
-        void complete(String id, Status status);
+        void complete(SocialService service, Request request, Request.Result result, String newGroupId);
     }
 
     public interface GroupSearchCallback
     {
-        void complete(ArrayList<Group> groups, Status status);
+        void complete(SocialService service, Request request, Request.Result result, List<Group> groups);
     }
 
     public static class Group
@@ -280,24 +280,25 @@ public class SocialService extends Service
         }
     }
 
-    public void getGroup(String groupId,
-                         AccessToken accessToken,
-                         final GroupGetCallback callback)
+    public void getGroup(
+        LoginService.AccessToken accessToken,
+        String groupId,
+        final GroupGetCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getRuntime(), getLocation() + "/group/" + groupId,
-            new Request.RequestResult()
+        JsonRequest jsonRequest = new JsonRequest(getLocation() + "/group/" + groupId,
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result result)
             {
-                if (status == Status.success)
+                if (result == Request.Result.success)
                 {
                     Group group = new Group(((JsonRequest) request).getObject());
-                    callback.complete(group, Status.success);
+                    callback.complete(SocialService.this, request, result, group);
                 }
                 else
                 {
-                    callback.complete(null, status);
+                    callback.complete(SocialService.this, request, result, null);
                 }
             }
         });
@@ -307,17 +308,18 @@ public class SocialService extends Service
         jsonRequest.get();
     }
 
-    public void getGroupProfile(String groupId,
-                         AccessToken accessToken,
-                         final GroupGetProfileCallback callback)
+    public void getGroupProfile(
+        LoginService.AccessToken accessToken,
+        String groupId,
+        final GroupGetProfileCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getRuntime(), getLocation() + "/group/" + groupId + "/profile",
-            new Request.RequestResult()
+        JsonRequest jsonRequest = new JsonRequest(getLocation() + "/group/" + groupId + "/profile",
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result result)
             {
-                if (status == Status.success)
+                if (result == Request.Result.success)
                 {
                     JSONObject response = ((JsonRequest) request).getObject();
 
@@ -326,16 +328,16 @@ public class SocialService extends Service
 
                     if (group == null)
                     {
-                        callback.complete(null, false, Status.dataCorrupted);
+                        callback.complete(SocialService.this, request, Request.Result.dataCorrupted, null, false);
                         return;
                     }
 
                     JSONObject profile = group.optJSONObject("profile");
-                    callback.complete(profile, participant, Status.success);
+                    callback.complete(SocialService.this, request, result, profile, participant);
                 }
                 else
                 {
-                    callback.complete(null, false, status);
+                    callback.complete(SocialService.this, request, result, null, false);
                 }
             }
         });
@@ -345,24 +347,26 @@ public class SocialService extends Service
         jsonRequest.get();
     }
 
-    public void getMyGroupParticipant(String groupId,
-                                      AccessToken accessToken, final GroupGetParticipationCallback callback)
+    public void getMyGroupParticipant(
+        LoginService.AccessToken accessToken,
+        String groupId,
+        final GroupGetParticipationCallback callback)
     {
-        getGroupParticipant(groupId, "me", accessToken, callback);
+        getGroupParticipant(accessToken, groupId, "me", callback);
     }
 
-    public void getGroupParticipant(String groupId,
-                                    String accountId,
-                                    AccessToken accessToken, final GroupGetParticipationCallback callback)
+    public void getGroupParticipant(
+        LoginService.AccessToken accessToken, String groupId,
+        String accountId,
+        final GroupGetParticipationCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getRuntime(),
-            getLocation() + "/group/" + groupId + "/participation/" + accountId,
-            new Request.RequestResult()
+        JsonRequest jsonRequest = new JsonRequest(getLocation() + "/group/" + groupId + "/participation/" + accountId,
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result result)
             {
-                if (status == Status.success)
+                if (result == Request.Result.success)
                 {
                     JSONObject response = ((JsonRequest) request).getObject();
 
@@ -371,16 +375,17 @@ public class SocialService extends Service
 
                     if (participation != null)
                     {
-                        callback.complete(new Group.Participant(participation), owner, Status.success);
+                        callback.complete(SocialService.this, request, result,
+                            new Group.Participant(participation), owner);
                     }
                     else
                     {
-                        callback.complete(null, false, Status.dataCorrupted);
+                        callback.complete(SocialService.this, request, Request.Result.dataCorrupted, null, false);
                     }
                 }
                 else
                 {
-                    callback.complete(null, false, status);
+                    callback.complete(SocialService.this, request, result, null, false);
                 }
             }
         });
@@ -390,26 +395,28 @@ public class SocialService extends Service
         jsonRequest.get();
     }
 
-    public void updateGroupProfile(String groupId,
-                                   JSONObject groupProfile,
-                                   AccessToken accessToken, final GroupUpdateCallback profileCallback)
+    public void updateGroupProfile(
+        LoginService.AccessToken accessToken, String groupId,
+        JSONObject groupProfile,
+        final GroupUpdateCallback profileCallback)
     {
-        updateGroupProfile(groupId, groupProfile, null, true, accessToken, profileCallback);
+        updateGroupProfile(accessToken, groupId, groupProfile, null, true, profileCallback);
     }
 
-    public void updateGroupProfile(String groupId,
-                                   JSONObject groupProfile,
-                                   JSONObject notify,
-                                   boolean merge,
-                                   AccessToken accessToken, final GroupUpdateCallback callback)
+    public void updateGroupProfile(
+        LoginService.AccessToken accessToken, String groupId,
+        JSONObject groupProfile,
+        JSONObject notify,
+        boolean merge,
+        final GroupUpdateCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getRuntime(), getLocation() + "/group/" + groupId + "/profile",
-            new Request.RequestResult()
+        JsonRequest jsonRequest = new JsonRequest(getLocation() + "/group/" + groupId + "/profile",
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result result)
             {
-                if (status == Status.success)
+                if (result == Request.Result.success)
                 {
                     JSONObject response = ((JsonRequest) request).getObject();
 
@@ -420,21 +427,21 @@ public class SocialService extends Service
 
                         if (groupProfile != null)
                         {
-                            callback.complete(groupProfile, Status.success);
+                            callback.complete(SocialService.this, request, result, groupProfile);
                             return;
                         }
                     }
 
-                    callback.complete(null, Status.success);
+                    callback.complete(SocialService.this, request, result, null);
                 }
                 else
                 {
-                    callback.complete(null, status);
+                    callback.complete(SocialService.this, request, result, null);
                 }
             }
         });
 
-        Map<String, Object> _options = new HashMap<String, Object>();
+        Request.Fields _options = new Request.Fields();
 
         _options.put("profile", groupProfile.toString());
         _options.put("merge", merge ? "true" : "false");
@@ -447,16 +454,17 @@ public class SocialService extends Service
     }
 
     public void updateGroupBatchProfiles(
+        LoginService.AccessToken accessToken,
         Map<String, JSONObject> profiles, boolean merge,
-        AccessToken accessToken, final GroupBatchUpdateCallback callback)
+        final GroupBatchUpdateCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getRuntime(), getLocation() + "/groups/profiles",
-            new Request.RequestResult()
+        JsonRequest jsonRequest = new JsonRequest(getLocation() + "/groups/profiles",
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result result)
             {
-                if (status == Status.success)
+                if (result == Request.Result.success)
                 {
                     JSONObject response = ((JsonRequest) request).getObject();
 
@@ -480,20 +488,20 @@ public class SocialService extends Service
                             profiles.put(groupId, profile);
                         }
 
-                        callback.complete(profiles, Status.success);
+                        callback.complete(SocialService.this, request, result, profiles);
                         return;
                     }
 
-                    callback.complete(null, Status.success);
+                    callback.complete(SocialService.this, request, result, null);
                 }
                 else
                 {
-                    callback.complete(null, status);
+                    callback.complete(SocialService.this, request, result, null);
                 }
             }
         });
 
-        Map<String, Object> _options = new HashMap<String, Object>();
+        Request.Fields _options = new Request.Fields();
 
         JSONObject _profiles = new JSONObject();
 
@@ -511,23 +519,23 @@ public class SocialService extends Service
     }
 
     public void updateGroupSummary(
-            String groupId,
-            String name,
-            Group.JoinMethod joinMethod,
-            JSONObject notify,
-            AccessToken accessToken, final GroupUpdateSummaryCallback callback)
+        LoginService.AccessToken accessToken, String groupId,
+        String name,
+        Group.JoinMethod joinMethod,
+        JSONObject notify,
+        final GroupUpdateSummaryCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getRuntime(), getLocation() + "/group/" + groupId,
-            new Request.RequestResult()
+        JsonRequest jsonRequest = new JsonRequest(getLocation() + "/group/" + groupId,
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result result)
             {
-                callback.complete(status);
+                callback.complete(SocialService.this, request, result);
             }
         });
 
-        Map<String, Object> _options = new HashMap<String, Object>();
+        Request.Fields _options = new Request.Fields();
 
         if (name != null)
             _options.put("name", name);
@@ -542,51 +550,51 @@ public class SocialService extends Service
     }
 
     public void updateMyGroupParticipation(
-            String groupId,
-            JSONObject participationProfile,
-            JSONObject notify,
-            boolean merge,
-            AccessToken accessToken, final GroupUpdateParticipantCallback callback)
+        LoginService.AccessToken accessToken, String groupId,
+        JSONObject participationProfile,
+        JSONObject notify,
+        boolean merge,
+        final GroupUpdateParticipantCallback callback)
     {
-        updateGroupParticipation(groupId, "me", participationProfile, notify, merge, accessToken, callback);
+        updateGroupParticipation(accessToken, groupId, "me", participationProfile, notify, merge, callback);
     }
 
     public void updateGroupParticipation(
-            String groupId,
-            String accountId,
-            JSONObject participationProfile,
-            JSONObject notify,
-            boolean merge,
-            AccessToken accessToken, final GroupUpdateParticipantCallback callback)
+        LoginService.AccessToken accessToken, String groupId,
+        String accountId,
+        JSONObject participationProfile,
+        JSONObject notify,
+        boolean merge,
+        final GroupUpdateParticipantCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getRuntime(),
-            getLocation() + "/group/" + groupId + "/participation/" + accountId,
-            new Request.RequestResult()
+        JsonRequest jsonRequest = new JsonRequest(
+                getLocation() + "/group/" + groupId + "/participation/" + accountId,
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result result)
             {
-                if (status == Status.success)
+                if (result == Request.Result.success)
                 {
                     JSONObject response = ((JsonRequest) request).getObject();
 
                     JSONObject profile = response.optJSONObject("profile");
                     if (profile != null)
                     {
-                        callback.complete(profile, Status.success);
+                        callback.complete(SocialService.this, request, result, profile);
                         return;
                     }
 
-                    callback.complete(null, Status.success);
+                    callback.complete(SocialService.this, request, result, null);
                 }
                 else
                 {
-                    callback.complete(null, status);
+                    callback.complete(SocialService.this, request, result, null);
                 }
             }
         });
 
-        Map<String, Object> _options = new HashMap<String, Object>();
+        Request.Fields _options = new Request.Fields();
 
         _options.put("profile", participationProfile.toString());
         _options.put("merge", merge ? "true" : "false");
@@ -599,35 +607,35 @@ public class SocialService extends Service
     }
 
     public void updateMyGroupParticipationPermissions(
-            String groupId,
-            Set<String> permissions,
-            int role,
-            JSONObject notify,
-            AccessToken accessToken, final GroupUpdateParticipantPermissionsCallback callback)
+        LoginService.AccessToken accessToken, String groupId,
+        Set<String> permissions,
+        int role,
+        JSONObject notify,
+        final GroupUpdateParticipantPermissionsCallback callback)
     {
-        updateGroupParticipationPermissions(groupId, "me", permissions, role, notify, accessToken, callback);
+        updateGroupParticipationPermissions(accessToken, groupId, "me", permissions, role, notify, callback);
     }
 
     public void updateGroupParticipationPermissions(
-            String groupId,
-            String accountId,
-            Set<String> permissions,
-            int role,
-            JSONObject notify,
-            AccessToken accessToken, final GroupUpdateParticipantPermissionsCallback callback)
+        LoginService.AccessToken accessToken, String groupId,
+        String accountId,
+        Set<String> permissions,
+        int role,
+        JSONObject notify,
+        final GroupUpdateParticipantPermissionsCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getRuntime(),
-            getLocation() + "/group/" + groupId + "/participation/" + accountId + "/permissions",
-            new Request.RequestResult()
+        JsonRequest jsonRequest = new JsonRequest(
+                getLocation() + "/group/" + groupId + "/participation/" + accountId + "/permissions",
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result result)
             {
-                callback.complete(status);
+                callback.complete(SocialService.this, request, result);
             }
         });
 
-        Map<String, Object> _options = new HashMap<String, Object>();
+        Request.Fields _options = new Request.Fields();
 
         JSONArray p = new JSONArray();
         for (String permission : permissions)
@@ -644,41 +652,42 @@ public class SocialService extends Service
         jsonRequest.post(_options);
     }
 
-    public void createGroup(String name,
-                            Group.JoinMethod joinMethod,
-                            int maxMembers,
-                            JSONObject groupProfile,
-                            JSONObject myParticipationProfile,
-                            boolean enableInGroupMessages,
-                            AccessToken accessToken, final GroupCreateCallback callback)
+    public void createGroup(
+        LoginService.AccessToken accessToken, String name,
+        Group.JoinMethod joinMethod,
+        int maxMembers,
+        JSONObject groupProfile,
+        JSONObject myParticipationProfile,
+        boolean enableInGroupMessages,
+        final GroupCreateCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getRuntime(), getLocation() + "/groups/create",
-            new Request.RequestResult()
+        JsonRequest jsonRequest = new JsonRequest(getLocation() + "/groups/create",
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result result)
             {
-                if (status == Status.success)
+                if (result == Request.Result.success)
                 {
                     JSONObject response = ((JsonRequest) request).getObject();
 
                     String id = response.optString("id");
                     if (id != null)
                     {
-                        callback.complete(id, Status.success);
+                        callback.complete(SocialService.this, request, result, id);
                         return;
                     }
 
-                    callback.complete(null, Status.dataCorrupted);
+                    callback.complete(SocialService.this, request, Request.Result.dataCorrupted, null);
                 }
                 else
                 {
-                    callback.complete(null, status);
+                    callback.complete(SocialService.this, request, result, null);
                 }
             }
         });
 
-        Map<String, Object> _options = new HashMap<String, Object>();
+        Request.Fields _options = new Request.Fields();
 
         _options.put("name", name);
         _options.put("group_profile", groupProfile.toString());
@@ -693,23 +702,25 @@ public class SocialService extends Service
         jsonRequest.post(_options);
     }
 
-    public void searchGroups(String query,
-                             AccessToken accessToken, final GroupSearchCallback callback)
+    public void searchGroups(
+        LoginService.AccessToken accessToken,
+        String query,
+        final GroupSearchCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getRuntime(), getLocation() + "/groups/search",
-            new Request.RequestResult()
+        JsonRequest jsonRequest = new JsonRequest(getLocation() + "/groups/search",
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result result)
             {
-                if (status == Status.success)
+                if (result == Request.Result.success)
                 {
                     JSONObject response = ((JsonRequest) request).getObject();
 
                     JSONArray groups = response.optJSONArray("groups");
                     if (groups != null)
                     {
-                        ArrayList<Group> out = new ArrayList<Group>();
+                        LinkedList<Group> out = new LinkedList<Group>();
 
                         for (int i = 0, t = groups.length(); i < t; i++)
                         {
@@ -721,20 +732,20 @@ public class SocialService extends Service
                             }
                         }
 
-                        callback.complete(out, Status.success);
+                        callback.complete(SocialService.this, request, result, out);
                         return;
                     }
 
-                    callback.complete(null, Status.dataCorrupted);
+                    callback.complete(SocialService.this, request, Request.Result.dataCorrupted, null);
                 }
                 else
                 {
-                    callback.complete(null, status);
+                    callback.complete(SocialService.this, request, result, null);
                 }
             }
         });
 
-        Map<String, String> arguments = new HashMap<String, String>();
+        Request.Fields arguments = new Request.Fields();
         arguments.put("query", query);
 
         jsonRequest.setAPIVersion(getAPIVersion());
@@ -743,28 +754,31 @@ public class SocialService extends Service
         jsonRequest.get();
     }
 
-    public void joinGroup(String groupId,
-                          AccessToken accessToken, final GroupJoinCallback callback)
+    public void joinGroup(
+        LoginService.AccessToken accessToken, String groupId,
+        final GroupJoinCallback callback)
     {
-        joinGroup(groupId, null, null, accessToken, callback);
+        joinGroup(accessToken, groupId, null, null, callback);
     }
 
-    public void joinGroup(String groupId,
-                          JSONObject participationProfile,
-                          JSONObject notify,
-                          AccessToken accessToken, final GroupJoinCallback callback)
+    public void joinGroup(
+        LoginService.AccessToken accessToken,
+        String groupId,
+        JSONObject participationProfile,
+        JSONObject notify,
+        final GroupJoinCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getRuntime(), getLocation() + "/group/" + groupId + "/join",
-            new Request.RequestResult()
+        JsonRequest jsonRequest = new JsonRequest(getLocation() + "/group/" + groupId + "/join",
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result result)
             {
-                callback.complete(status);
+                callback.complete(SocialService.this, request, result);
             }
         });
 
-        Map<String, Object> _options = new HashMap<String, Object>();
+        Request.Fields _options = new Request.Fields();
 
         if (participationProfile != null)
             _options.put("participation_profile", participationProfile.toString());
@@ -777,21 +791,24 @@ public class SocialService extends Service
     }
 
     public void acceptGroupInvitation(
-        String groupId, JSONObject participationProfile, JSONObject notify, String key,
-        AccessToken accessToken, final GroupJoinCallback callback)
+        LoginService.AccessToken accessToken,
+        String groupId,
+        JSONObject participationProfile,
+        JSONObject notify, String key,
+        final GroupJoinCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getRuntime(),
-            getLocation() + "/group/" + groupId + "/invitation/accept",
-            new Request.RequestResult()
+        JsonRequest jsonRequest = new JsonRequest(
+                getLocation() + "/group/" + groupId + "/invitation/accept",
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result result)
             {
-                callback.complete(status);
+                callback.complete(SocialService.this, request, result);
             }
         });
 
-        Map<String, Object> _options = new HashMap<String, Object>();
+        Request.Fields _options = new Request.Fields();
 
         _options.put("participation_profile", participationProfile.toString());
         if (notify != null)
@@ -804,21 +821,24 @@ public class SocialService extends Service
     }
 
     public void rejectGroupInvitation(
-        String groupId, JSONObject notify, String key,
-        AccessToken accessToken, final GroupJoinCallback callback)
+        LoginService.AccessToken accessToken,
+        String groupId,
+        JSONObject notify,
+        String key,
+        final GroupJoinCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getRuntime(),
-            getLocation() + "/group/" + groupId + "/invitation/reject",
-            new Request.RequestResult()
+        JsonRequest jsonRequest = new JsonRequest(
+                getLocation() + "/group/" + groupId + "/invitation/reject",
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result result)
             {
-                callback.complete(status);
+                callback.complete(SocialService.this, request, result);
             }
         });
 
-        Map<String, Object> _options = new HashMap<String, Object>();
+        Request.Fields _options = new Request.Fields();
 
         if (notify != null)
             _options.put("notify", notify.toString());
@@ -830,27 +850,30 @@ public class SocialService extends Service
         jsonRequest.post(_options);
     }
 
-    public void leaveGroup(String groupId,
-                          AccessToken accessToken, final GroupLeaveCallback callback)
+    public void leaveGroup(
+        LoginService.AccessToken accessToken,
+        String groupId,
+        final GroupLeaveCallback callback)
     {
-        leaveGroup(groupId, null, accessToken, callback);
+        leaveGroup(accessToken, groupId, null, callback);
     }
 
-    public void leaveGroup(String groupId,
-                          JSONObject notify,
-                          AccessToken accessToken, final GroupLeaveCallback callback)
+    public void leaveGroup(
+        LoginService.AccessToken accessToken, String groupId,
+        JSONObject notify,
+        final GroupLeaveCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getRuntime(), getLocation() + "/group/" + groupId + "/leave",
-            new Request.RequestResult()
+        JsonRequest jsonRequest = new JsonRequest(getLocation() + "/group/" + groupId + "/leave",
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result result)
             {
-                callback.complete(status);
+                callback.complete(SocialService.this, request, result);
             }
         });
 
-        Map<String, Object> _options = new HashMap<String, Object>();
+        Request.Fields _options = new Request.Fields();
 
         if (notify != null)
             _options.put("notify", notify.toString());
@@ -860,28 +883,34 @@ public class SocialService extends Service
         jsonRequest.post(_options);
     }
 
-    public void kickFromGroup(String groupId, String accountId,
-                              AccessToken accessToken, final GroupKickCallback callback)
+    public void kickFromGroup(
+        LoginService.AccessToken accessToken,
+        String groupId,
+        String accountId,
+        final GroupKickCallback callback)
     {
-        kickFromGroup(groupId, accountId, null, accessToken, callback);
+        kickFromGroup(accessToken, groupId, accountId, null, callback);
     }
 
-    public void kickFromGroup(String groupId, String accountId,
-                              JSONObject notify,
-                              AccessToken accessToken, final GroupKickCallback callback)
+    public void kickFromGroup(
+        LoginService.AccessToken accessToken,
+        String groupId,
+        String accountId,
+        JSONObject notify,
+        final GroupKickCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getRuntime(),
+        JsonRequest jsonRequest = new JsonRequest(
                 getLocation() + "/group/" + groupId + "/participation/" + accountId,
-            new Request.RequestResult()
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result result)
             {
-                callback.complete(status);
+                callback.complete(SocialService.this, request, result);
             }
         });
 
-        Map<String, Object> _options = new HashMap<String, Object>();
+        Request.Fields _options = new Request.Fields();
 
         if (notify != null)
             _options.put("notify", notify.toString());
@@ -892,22 +921,25 @@ public class SocialService extends Service
         jsonRequest.delete(_options);
     }
 
-    public void transferOwnership(String groupId,
-                                  String accountTransferTo, int myNewRole,
-                                  JSONObject notify,
-                                  AccessToken accessToken, final GroupJoinCallback callback)
+    public void transferOwnership(
+        LoginService.AccessToken accessToken,
+        String groupId,
+        String accountTransferTo,
+        int myNewRole,
+        JSONObject notify,
+        final GroupJoinCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getRuntime(), getLocation() + "/group/" + groupId + "/ownership",
-            new Request.RequestResult()
+        JsonRequest jsonRequest = new JsonRequest(getLocation() + "/group/" + groupId + "/ownership",
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result result)
             {
-                callback.complete(status);
+                callback.complete(SocialService.this, request, result);
             }
         });
 
-        Map<String, Object> _options = new HashMap<String, Object>();
+        Request.Fields _options = new Request.Fields();
 
         if (notify != null)
             _options.put("notify", notify.toString());
@@ -920,32 +952,33 @@ public class SocialService extends Service
         jsonRequest.post(_options);
     }
 
-    public void requestJoinGroup(String groupId,
-                                 JSONObject participationProfile,
-                                 JSONObject notify,
-                                 AccessToken accessToken, final GroupJoinRequestCallback callback)
+    public void requestJoinGroup(
+        LoginService.AccessToken accessToken, String groupId,
+        JSONObject participationProfile,
+        JSONObject notify,
+        final GroupJoinRequestCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getRuntime(), getLocation() + "/group/" + groupId + "/request",
-            new Request.RequestResult()
+        JsonRequest jsonRequest = new JsonRequest(getLocation() + "/group/" + groupId + "/request",
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result result)
             {
-                if (status == Status.success)
+                if (result == Request.Result.success)
                 {
                     JSONObject response = ((JsonRequest) request).getObject();
 
                     String key = response.optString("key");
-                    callback.complete(key, Status.success);
+                    callback.complete(SocialService.this, request, result, key);
                 }
                 else
                 {
-                    callback.complete(null, status);
+                    callback.complete(SocialService.this, request, result, null);
                 }
             }
         });
 
-        Map<String, Object> _options = new HashMap<String, Object>();
+        Request.Fields _options = new Request.Fields();
 
         if (participationProfile != null)
             _options.put("participation_profile", participationProfile.toString());
@@ -957,49 +990,51 @@ public class SocialService extends Service
         jsonRequest.post(_options);
     }
 
-    public void inviteToGroup(String groupId,
-                              String accountId,
-                              int role,
-                              AccessToken accessToken, final GroupInviteCallback callback)
+    public void inviteToGroup(
+        LoginService.AccessToken accessToken, String groupId,
+        String accountId,
+        int role,
+        final GroupInviteCallback callback)
     {
-        inviteToGroup(groupId, accountId, role, null, null, accessToken, callback);
+        inviteToGroup(accessToken, groupId, accountId, role, null, null, callback);
     }
 
-    public void inviteToGroup(String groupId,
-                              String accountId,
-                              int role,
-                              Set<String> permissions,
-                              JSONObject notify,
-                              AccessToken accessToken, final GroupInviteCallback callback)
+    public void inviteToGroup(
+        LoginService.AccessToken accessToken, String groupId,
+        String accountId,
+        int role,
+        Set<String> permissions,
+        JSONObject notify,
+        final GroupInviteCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getRuntime(),
-            getLocation() + "/group/" + groupId + "/invite/" + accountId,
-            new Request.RequestResult()
+        JsonRequest jsonRequest = new JsonRequest(
+                getLocation() + "/group/" + groupId + "/invite/" + accountId,
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result result)
             {
-                if (status == Status.success)
+                if (result == Request.Result.success)
                 {
                     JSONObject response = ((JsonRequest) request).getObject();
 
                     String key = response.optString("key");
                     if (key != null)
                     {
-                        callback.complete(key, Status.success);
+                        callback.complete(SocialService.this, request, result, key);
                         return;
                     }
 
-                    callback.complete(null, Status.success);
+                    callback.complete(SocialService.this, request, result, null);
                 }
                 else
                 {
-                    callback.complete(null, status);
+                    callback.complete(SocialService.this, request, result, null);
                 }
             }
         });
 
-        Map<String, Object> _options = new HashMap<String, Object>();
+        Request.Fields _options = new Request.Fields();
 
         _options.put("role", String.valueOf(role));
         if (permissions != null)
@@ -1024,26 +1059,28 @@ public class SocialService extends Service
         jsonRequest.post(_options);
     }
 
-    public void approveJoin(String groupId,
-                            String accountId,
-                            String key,
-                            int role,
-                            Set<String> permissions,
-                            JSONObject notify,
-                            AccessToken accessToken, final GroupJoinApproveCallback callback)
+    public void approveJoin(
+        LoginService.AccessToken accessToken,
+        String groupId,
+        String accountId,
+        String key,
+        int role,
+        Set<String> permissions,
+        JSONObject notify,
+        final GroupJoinApproveCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getRuntime(),
-            getLocation() + "/group/" + groupId + "/approve/" + accountId,
-            new Request.RequestResult()
+        JsonRequest jsonRequest = new JsonRequest(
+                getLocation() + "/group/" + groupId + "/approve/" + accountId,
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result result)
             {
-                callback.complete(status);
+                callback.complete(SocialService.this, request, result);
             }
         });
 
-        Map<String, Object> _options = new HashMap<String, Object>();
+        Request.Fields _options = new Request.Fields();
 
         _options.put("role", String.valueOf(role));
         if (permissions != null)
@@ -1070,24 +1107,26 @@ public class SocialService extends Service
         jsonRequest.post(_options);
     }
 
-    public void rejectJoin(String groupId,
-                           String accountId,
-                           String key,
-                           JSONObject notify,
-                           AccessToken accessToken, final GroupJoinApproveCallback callback)
+    public void rejectJoin(
+        LoginService.AccessToken accessToken,
+        String groupId,
+        String accountId,
+        String key,
+        JSONObject notify,
+        final GroupJoinApproveCallback callback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getRuntime(),
-            getLocation() + "/group/" + groupId + "/reject/" + accountId,
-            new Request.RequestResult()
+        JsonRequest jsonRequest = new JsonRequest(
+                getLocation() + "/group/" + groupId + "/reject/" + accountId,
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result result)
             {
-                callback.complete(status);
+                callback.complete(SocialService.this, request, result);
             }
         });
 
-        Map<String, Object> _options = new HashMap<String, Object>();
+        Request.Fields _options = new Request.Fields();
 
         if (notify != null)
             _options.put("notify", notify.toString());

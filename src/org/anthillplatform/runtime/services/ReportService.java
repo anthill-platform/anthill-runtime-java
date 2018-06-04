@@ -1,16 +1,13 @@
 package org.anthillplatform.runtime.services;
 
 import org.anthillplatform.runtime.AnthillRuntime;
-import org.anthillplatform.runtime.Status;
-import org.anthillplatform.runtime.entity.AccessToken;
-import org.anthillplatform.runtime.entity.ApplicationInfo;
-import org.anthillplatform.runtime.request.JsonRequest;
-import org.anthillplatform.runtime.request.Request;
+import org.anthillplatform.runtime.util.ApplicationInfo;
+import org.anthillplatform.runtime.requests.JsonRequest;
+import org.anthillplatform.runtime.requests.Request;
 import org.json.JSONObject;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
-import java.util.*;
 
 /**
  * User submitted reports collecting service
@@ -22,10 +19,6 @@ public class ReportService extends Service
     public static final String ID = "report";
     public static final String API_VERSION = "0.2";
 
-    private static ReportService instance;
-    public static ReportService get() { return instance; }
-    private static void set(ReportService service) { instance = service; }
-
     public enum ReportFormat
     {
         json,
@@ -35,18 +28,21 @@ public class ReportService extends Service
 
     /**
      * Please note that you should not create an instance of the service yourself,
-     * and use ReportService.get() to get existing one instead
+     * and use AnthillRuntime.Get(ReportService.ID, ReportService.class) to get existing one instead
      */
     public ReportService(AnthillRuntime runtime, String location)
     {
         super(runtime, location, ID, API_VERSION);
+    }
 
-        set(this);
+    public static ReportService Get()
+    {
+        return AnthillRuntime.Get(ID, ReportService.class);
     }
 
     public interface UploadReportCallback
     {
-        void complete(String reportId, Request request, Status status);
+        void complete(String reportId, Request request, Request.Result result);
     }
 
     public void uploadTextReport(
@@ -54,7 +50,7 @@ public class ReportService extends Service
             String message,
             JSONObject info,
             String contents,
-            AccessToken accessToken,
+            LoginService.AccessToken accessToken,
             final UploadReportCallback callback)
     {
         InputStream stream = new ByteArrayInputStream(contents.getBytes());
@@ -66,7 +62,7 @@ public class ReportService extends Service
             String message,
             JSONObject info,
             JSONObject contents,
-            AccessToken accessToken,
+            LoginService.AccessToken accessToken,
             final UploadReportCallback callback)
     {
         String jsonContents = contents.toString();
@@ -80,19 +76,19 @@ public class ReportService extends Service
         ReportFormat format,
         JSONObject info,
         InputStream contents,
-        AccessToken accessToken,
+        LoginService.AccessToken accessToken,
         final UploadReportCallback callback)
     {
         ApplicationInfo applicationInfo = getRuntime().getApplicationInfo();
 
-        JsonRequest jsonRequest = new JsonRequest(getRuntime(),
-            getLocation() + "/upload/" + applicationInfo.getGameName() + "/" + applicationInfo.getGameVersion(),
-            new Request.RequestResult()
+        JsonRequest jsonRequest = new JsonRequest(
+            getLocation() + "/upload/" + applicationInfo.applicationName + "/" + applicationInfo.applicationVersion,
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result status)
             {
-                if (status == Status.success)
+                if (status == Request.Result.success)
                 {
                     JSONObject result = ((JsonRequest) request).getObject();
 
@@ -109,7 +105,7 @@ public class ReportService extends Service
             }
         });
 
-        Map<String, String> args = new HashMap<String, String>();
+        Request.Fields args = new Request.Fields();
 
         args.put("category", category);
         args.put("message", message);

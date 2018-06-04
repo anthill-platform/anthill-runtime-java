@@ -1,12 +1,12 @@
 package org.anthillplatform.runtime.services;
 
 import org.anthillplatform.runtime.AnthillRuntime;
-import org.anthillplatform.runtime.Status;
-import org.anthillplatform.runtime.request.JsonRequest;
-import org.anthillplatform.runtime.request.Request;
+import org.anthillplatform.runtime.requests.JsonRequest;
+import org.anthillplatform.runtime.requests.Request;
+import org.anthillplatform.runtime.util.ApplicationInfo;
 import org.json.JSONObject;
 
-import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Downloadable content (DLC) management service for Anthill platform
@@ -15,86 +15,95 @@ import java.util.ArrayList;
  */
 public class DLCService extends Service
 {
-    private ArrayList<DLCRecord> records;
-
     public static final String ID = "dlc";
     public static final String API_VERSION = "0.2";
 
-    private static DLCService instance;
-    public static DLCService get() { return instance; }
-    private static void set(DLCService service) { instance = service; }
-
-    public class DLCRecord
+    public class Bundle
     {
         public String name;
         public String url;
         public String hash;
+        public int size;
+        public JSONObject payload;
     }
 
-    public interface DLCCallback
+    public interface GetUpdatesCallback
     {
-        void complete(DLCService service, Status status);
+        void complete(DLCService service, Request request, Request.Result result);
     }
 
     /**
      * Please note that you should not create an instance of the service yourself,
-     * and use DLCService.get() to get existing one instead
+     * and use AnthillRuntime.Get(DLCService.ID, DLCService.class) to get existing one instead
      */
     public DLCService(AnthillRuntime runtime, String location)
     {
         super(runtime, location, ID, API_VERSION);
-
-        set(this);
-
-        this.records = new ArrayList<DLCRecord>();
     }
 
-    public void download(String appName, String appVersion, final DLCCallback callback)
+    public static DLCService Get()
     {
-        JsonRequest jsonRequest = new JsonRequest(getRuntime(),
-            getLocation() + "/data/" + appName + "/" + appVersion,
-            new Request.RequestResult()
+        return AnthillRuntime.Get(ID, DLCService.class);
+    }
+
+    public void getUpdates(final List<Bundle> bundlesOutput, final GetUpdatesCallback callback)
+    {
+        getUpdates(bundlesOutput, callback, null);
+    }
+
+    public void getUpdates(final List<Bundle> bundlesOutput, final GetUpdatesCallback callback, JSONObject env)
+    {
+        ApplicationInfo applicationInfo = AnthillRuntime.Get().getApplicationInfo();
+
+        JsonRequest jsonRequest = new JsonRequest(
+            getLocation() + "/data/" + applicationInfo.applicationName + "/" + applicationInfo.applicationVersion,
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result result)
             {
-                if (status == Status.success)
+                if (result == Request.Result.success)
                 {
-                    DLCService.this.parseFiles(((JsonRequest) request).getObject());
+                    JSONObject object = ((JsonRequest) request).getObject();
+                    JSONObject bundles_ = object.optJSONObject("bundles");
 
-                    callback.complete(DLCService.this, Status.success);
-                } else
+                    if (bundles_ != null)
+                    {
+                        for (Object fileName: bundles_.keySet())
+                        {
+                            Bundle bundle = new Bundle();
+
+                            bundle.name = (String)fileName;
+
+                            JSONObject bundle_ = ((JSONObject) bundles_.get(fileName.toString()));
+                            bundle.url = bundle_.optString("url");
+                            bundle.hash = bundle_.optString("hash");
+                            bundle.size = bundle_.optInt("size", 0);
+                            bundle.payload = bundle_.optJSONObject("payload");
+
+                            bundlesOutput.add(bundle);
+                        }
+                    }
+
+                    callback.complete(DLCService.this, request, result);
+                }
+                else
                 {
-                    callback.complete(DLCService.this, status);
+                    callback.complete(DLCService.this, request, result);
                 }
             }
         });
 
-        jsonRequest.setAPIVersion(getAPIVersion());
-
-        jsonRequest.get();
-    }
-
-    private void parseFiles(JSONObject object)
-    {
-        records.clear();
-
-        for (Object fileName: object.keySet())
+        if (env != null)
         {
-            DLCRecord record = new DLCRecord();
+            Request.Fields fields = new Request.Fields();
 
-            record.name = (String)fileName;
+            fields.put("env", env.toString());
 
-            JSONObject r = ((JSONObject) object.get(fileName.toString()));
-            record.url = ((String) r.get("url"));
-            record.hash = ((String) r.get("hash"));
-
-            records.add(record);
+            jsonRequest.setQueryArguments(fields);
         }
-    }
 
-    public ArrayList<DLCRecord> getFileRecords()
-    {
-        return records;
+        jsonRequest.setAPIVersion(getAPIVersion());
+        jsonRequest.get();
     }
 }

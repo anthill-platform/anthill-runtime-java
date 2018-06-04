@@ -1,10 +1,8 @@
 package org.anthillplatform.runtime.services;
 
 import org.anthillplatform.runtime.AnthillRuntime;
-import org.anthillplatform.runtime.Status;
-import org.anthillplatform.runtime.entity.AccessToken;
-import org.anthillplatform.runtime.request.JsonRequest;
-import org.anthillplatform.runtime.request.Request;
+import org.anthillplatform.runtime.requests.JsonRequest;
+import org.anthillplatform.runtime.requests.Request;
 import org.json.JSONObject;
 
 /**
@@ -17,40 +15,42 @@ public class PromoService extends Service
     public static final String ID = "promo";
     public static final String API_VERSION = "0.2";
 
-    private static PromoService instance;
-    public static PromoService get() { return instance; }
-    private static void set(PromoService service) { instance = service; }
-
     /**
      * Please note that you should not create an instance of the service yourself,
-     * and use PromoService.get() to get existing one instead
+     * and use AnthillRuntime.Get(PromoService.ID, PromoService.class) to get existing one instead
      */
     public PromoService(AnthillRuntime runtime, String location)
     {
         super(runtime, location, ID, API_VERSION);
-
-        set(this);
     }
 
-    public interface PromoCallback
+    public static PromoService Get()
     {
-        void complete(JSONObject promo, Status status);
+        return AnthillRuntime.Get(ID, PromoService.class);
     }
 
-    public void usePromoCode(AccessToken accessToken, String promoCode, final PromoCallback profileCallback)
+    public interface UsePromoCodeCallback
     {
-        JsonRequest jsonRequest = new JsonRequest(getRuntime(), getLocation() + "/use/" + promoCode,
-            new Request.RequestResult()
+        void complete(PromoService service, Request request, Request.Result result, JSONObject promo);
+    }
+
+    public void usePromoCode(
+        LoginService.AccessToken accessToken,
+        String promoCode,
+        final UsePromoCodeCallback callback)
+    {
+        JsonRequest jsonRequest = new JsonRequest(getLocation() + "/use/" + promoCode,
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result result)
             {
-                if (status == Status.success)
+                if (result == Request.Result.success)
                 {
-                    profileCallback.complete(((JsonRequest) request).getObject(), Status.success);
+                    callback.complete(PromoService.this, request, result, ((JsonRequest) request).getObject());
                 } else
                 {
-                    profileCallback.complete(null, status);
+                    callback.complete(PromoService.this, request, result, null);
                 }
             }
         });

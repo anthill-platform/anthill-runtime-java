@@ -1,10 +1,8 @@
 package org.anthillplatform.runtime.services;
 
 import org.anthillplatform.runtime.AnthillRuntime;
-import org.anthillplatform.runtime.Status;
-import org.anthillplatform.runtime.entity.AccessToken;
-import org.anthillplatform.runtime.request.JsonRequest;
-import org.anthillplatform.runtime.request.Request;
+import org.anthillplatform.runtime.requests.JsonRequest;
+import org.anthillplatform.runtime.requests.Request;
 import org.anthillplatform.runtime.util.Utils;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -24,50 +22,49 @@ public class EventService extends Service
     public static final String ID = "event";
     public static final String API_VERSION = "0.2";
 
-    private static EventService instance;
-    public static EventService get() { return instance; }
-    private static void set(EventService service) { instance = service; }
-
     /**
      * Please note that you should not create an instance of the service yourself,
-     * and use EventService.get() to get existing one instead
+     * and use AnthillRuntime.Get(EventService.ID, EventService.class)  to get existing one instead
      */
     public EventService(AnthillRuntime runtime, String location)
     {
         super(runtime, location, ID, API_VERSION);
+    }
 
-        set(this);
+    public static EventService Get()
+    {
+        return AnthillRuntime.Get(ID, EventService.class);
     }
 
     public interface PostEventScoreCallback
     {
-        void complete(float newScore, Status status);
+        void complete(EventService service, Request request, Request.Result result, float newScore);
     }
 
     public interface JoinEventCallback
     {
-        void complete(Status status);
+        void complete(EventService service, Request request, Request.Result result);
     }
 
     public interface LeaveEventCallback
     {
-        void complete(Status status);
+        void complete(EventService service, Request request, Request.Result result);
     }
 
     public interface PostEventProfileCallback
     {
-        void complete(JSONObject newData, Status status);
+        void complete(EventService service, Request request, Request.Result result, JSONObject newData);
     }
 
     public interface EventListCallback
     {
-        void complete(EventList events, Status status);
+        void complete(EventService service, Request request, Request.Result result, EventList events);
     }
-
 
     public interface GroupProfileParticipantsCallback
     {
-        void complete(Map<String, GroupEventParticipant> participants, Status status);
+        void complete(EventService service, Request request, Request.Result result,
+                      Map<String, GroupEventParticipant> participants);
     }
 
     public static class GroupEventParticipant
@@ -232,29 +229,38 @@ public class EventService extends Service
         }
     }
 
-    public void updateEventProfile(String eventId, JSONObject profile,
-                                   final PostEventProfileCallback callback, AccessToken accessToken)
+    public void updateEventProfile(
+        LoginService.AccessToken accessToken,
+        String eventId,
+        JSONObject profile,
+        final PostEventProfileCallback callback)
     {
-        updateEventProfile(eventId, profile, null, true, callback, accessToken);
+        updateEventProfile(accessToken, eventId, profile, null, true, callback);
     }
 
-    public void updateEventProfile(String eventId, JSONObject profile, String path, boolean merge,
-                                   final PostEventProfileCallback callback, AccessToken accessToken)
+    public void updateEventProfile(
+        LoginService.AccessToken accessToken,
+        String eventId,
+        JSONObject profile,
+        String path,
+        boolean merge,
+        final PostEventProfileCallback callback)
     {
-        JsonRequest scorePost = new JsonRequest(getRuntime(),
-            getLocation() + "/event/" + eventId + "/profile",
-            new Request.RequestResult()
+        JsonRequest scorePost = new JsonRequest(
+                getLocation() + "/event/" + eventId + "/profile",
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result status)
             {
-                if (status == Status.success)
+                if (status == Request.Result.success)
                 {
                     JSONObject result = ((JsonRequest) request).getObject();
-                    callback.complete(result, Status.success);
-                } else
+                    callback.complete(EventService.this, request, status, result);
+                }
+                else
                 {
-                    callback.complete(null, status);
+                    callback.complete(EventService.this, request, status, null);
                 }
             }
         });
@@ -262,7 +268,7 @@ public class EventService extends Service
         scorePost.setAPIVersion(getAPIVersion());
         scorePost.setToken(accessToken);
 
-        Map<String, Object> fields = new HashMap<String, Object>();
+        Request.Fields fields = new Request.Fields();
 
         fields.put("profile", profile.toString());
         fields.put("merge", merge ? "true" : "false");
@@ -275,29 +281,40 @@ public class EventService extends Service
         scorePost.post(fields);
     }
 
-    public void updateGroupEventProfile(String eventId, String groupId, JSONObject profile,
-                                        final PostEventProfileCallback callback, AccessToken accessToken)
+    public void updateGroupEventProfile(
+        LoginService.AccessToken accessToken,
+        String eventId,
+        String groupId,
+        JSONObject profile,
+        final PostEventProfileCallback callback)
     {
-        updateGroupEventProfile(eventId, groupId, profile, null, true, callback, accessToken);
+        updateGroupEventProfile(accessToken, eventId, groupId, profile, null, true, callback);
     }
 
-    public void updateGroupEventProfile(String eventId, String groupId, JSONObject profile, String path, boolean merge,
-                                   final PostEventProfileCallback callback, AccessToken accessToken)
+    public void updateGroupEventProfile(
+        LoginService.AccessToken accessToken,
+        String eventId,
+        String groupId,
+        JSONObject profile,
+        String path,
+        boolean merge,
+        final PostEventProfileCallback callback)
     {
-        JsonRequest scorePost = new JsonRequest(getRuntime(),
-            getLocation() + "/event/" + eventId + "/group/profile",
-            new Request.RequestResult()
+        JsonRequest scorePost = new JsonRequest(
+                getLocation() + "/event/" + eventId + "/group/profile",
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result status)
             {
-                if (status == Status.success)
+                if (status == Request.Result.success)
                 {
                     JSONObject result = ((JsonRequest) request).getObject();
-                    callback.complete(result, Status.success);
-                } else
+                    callback.complete(EventService.this, request, status, result);
+                }
+                else
                 {
-                    callback.complete(null, status);
+                    callback.complete(EventService.this, request, status, null);
                 }
             }
         });
@@ -305,7 +322,7 @@ public class EventService extends Service
         scorePost.setAPIVersion(getAPIVersion());
         scorePost.setToken(accessToken);
 
-        Map<String, Object> fields = new HashMap<String, Object>();
+        Request.Fields fields = new Request.Fields();
 
         fields.put("profile", profile.toString());
         fields.put("group_id", groupId);
@@ -319,23 +336,30 @@ public class EventService extends Service
         scorePost.post(fields);
     }
 
-    public void addEventScore(String eventId, float score,
-                              final PostEventScoreCallback callback, AccessToken accessToken)
+    public void addEventScore(
+        LoginService.AccessToken accessToken,
+        String eventId,
+        float score,
+        final PostEventScoreCallback callback)
     {
-        addEventScore(eventId, score, false, null, callback, accessToken);
+        addEventScore(accessToken, eventId, score, false, null, callback);
     }
 
-    public void addEventScore(String eventId, float score, boolean autoJoin, JSONObject leaderboardInfo,
-                              final PostEventScoreCallback callback, AccessToken accessToken)
+    public void addEventScore(
+        LoginService.AccessToken accessToken,
+        String eventId,
+        float score,
+        boolean autoJoin,
+        JSONObject leaderboardInfo,
+        final PostEventScoreCallback callback)
     {
-        JsonRequest scorePost = new JsonRequest(getRuntime(),
-            getLocation() + "/event/" + eventId + "/score/add",
-            new Request.RequestResult()
+        JsonRequest scorePost = new JsonRequest(getLocation() + "/event/" + eventId + "/score/add",
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result status)
             {
-                if (status == Status.success)
+                if (status == Request.Result.success)
                 {
                     JSONObject result = ((JsonRequest) request).getObject();
 
@@ -346,10 +370,11 @@ public class EventService extends Service
                         newScore = ((float) result.optDouble("score"));
                     }
 
-                    callback.complete(newScore, Status.success);
-                } else
+                    callback.complete(EventService.this, request, status, newScore);
+                }
+                else
                 {
-                    callback.complete(0, status);
+                    callback.complete(EventService.this, request, status, 0);
                 }
             }
         });
@@ -357,7 +382,7 @@ public class EventService extends Service
         scorePost.setAPIVersion(getAPIVersion());
         scorePost.setToken(accessToken);
 
-        Map<String, Object> fields = new HashMap<String, Object>();
+        Request.Fields fields = new Request.Fields();
 
         fields.put("score", String.valueOf(score));
         fields.put("auto_join", autoJoin ? "true" : "false");
@@ -370,16 +395,19 @@ public class EventService extends Service
         scorePost.post(fields);
     }
 
-    public void leaveEvent(String eventId, final LeaveEventCallback callback, AccessToken accessToken)
+    public void leaveEvent(
+        LoginService.AccessToken accessToken,
+        String eventId,
+        final LeaveEventCallback callback)
     {
-        JsonRequest scorePost = new JsonRequest(getRuntime(),
-            getLocation() + "/event/" + eventId + "/leave",
-        new Request.RequestResult()
+        JsonRequest scorePost = new JsonRequest(
+                getLocation() + "/event/" + eventId + "/leave",
+        new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result status)
             {
-                callback.complete(status);
+                callback.complete(EventService.this, request, status);
             }
         });
 
@@ -388,52 +416,60 @@ public class EventService extends Service
         scorePost.post();
     }
 
-    public void leaveGroupEvent(String eventId, String groupId,
-                                final LeaveEventCallback callback, AccessToken accessToken)
+    public void leaveGroupEvent(
+        LoginService.AccessToken accessToken,
+        String eventId,
+        String groupId,
+        final LeaveEventCallback callback)
     {
-        JsonRequest scorePost = new JsonRequest(getRuntime(),
-            getLocation() + "/event/" + eventId + "/group/leave",
-        new Request.RequestResult()
+        JsonRequest scorePost = new JsonRequest(
+                getLocation() + "/event/" + eventId + "/group/leave",
+        new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result status)
             {
-                callback.complete(status);
+                callback.complete(EventService.this, request, status);
             }
         });
 
         scorePost.setAPIVersion(getAPIVersion());
         scorePost.setToken(accessToken);
 
-        Map<String, Object> fields = new HashMap<String, Object>();
+        Request.Fields fields = new Request.Fields();
         fields.put("group_id", groupId);
         scorePost.post(fields);
     }
 
-    public void joinEvent(String eventId,
-                          final JoinEventCallback callback, AccessToken accessToken)
+    public void joinEvent(
+        LoginService.AccessToken accessToken,
+        String eventId,
+        final JoinEventCallback callback)
     {
-        joinEvent(eventId, 0, null, callback, accessToken);
+        joinEvent(accessToken, eventId, 0, null, callback);
     }
 
-    public void joinEvent(String eventId, float score, JSONObject leaderboardInfo,
-                          final JoinEventCallback callback, AccessToken accessToken)
+    public void joinEvent(
+        LoginService.AccessToken accessToken,
+        String eventId,
+        float score,
+        JSONObject leaderboardInfo,
+        final JoinEventCallback callback)
     {
-        JsonRequest scorePost = new JsonRequest(getRuntime(),
-            getLocation() + "/event/" + eventId + "/join",
-            new Request.RequestResult()
+        JsonRequest scorePost = new JsonRequest(getLocation() + "/event/" + eventId + "/join",
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result status)
             {
-                callback.complete(status);
+                callback.complete(EventService.this, request, status);
             }
         });
 
         scorePost.setAPIVersion(getAPIVersion());
         scorePost.setToken(accessToken);
 
-        Map<String, Object> fields = new HashMap<String, Object>();
+        Request.Fields fields = new Request.Fields();
 
         fields.put("score", String.valueOf(score));
 
@@ -445,30 +481,37 @@ public class EventService extends Service
         scorePost.post(fields);
     }
 
-    public void joinGroupEvent(String eventId, String groupId,
-                               final JoinEventCallback callback, AccessToken accessToken)
+    public void joinGroupEvent(
+        LoginService.AccessToken accessToken,
+        String eventId,
+        String groupId,
+        final JoinEventCallback callback)
     {
-        joinGroupEvent(eventId, groupId, 0, null, callback, accessToken);
+        joinGroupEvent(accessToken, eventId, groupId, 0, null, callback);
     }
 
-    public void joinGroupEvent(String eventId, String groupId, float score, JSONObject leaderboardInfo,
-                          final JoinEventCallback callback, AccessToken accessToken)
+    public void joinGroupEvent(
+        LoginService.AccessToken accessToken,
+        String eventId,
+        String groupId,
+        float score,
+        JSONObject leaderboardInfo,
+        final JoinEventCallback callback)
     {
-        JsonRequest scorePost = new JsonRequest(getRuntime(),
-                getLocation() + "/event/" + eventId + "/group/join",
-                new Request.RequestResult()
-                {
-                    @Override
-                    public void complete(Request request, Status status)
-                    {
-                        callback.complete(status);
-                    }
-                });
+        JsonRequest scorePost = new JsonRequest(getLocation() + "/event/" + eventId + "/group/join",
+            new Request.RequestCallback()
+        {
+            @Override
+            public void complete(Request request, Request.Result status)
+            {
+                callback.complete(EventService.this, request, status);
+            }
+        });
 
         scorePost.setAPIVersion(getAPIVersion());
         scorePost.setToken(accessToken);
 
-        Map<String, Object> fields = new HashMap<String, Object>();
+        Request.Fields fields = new Request.Fields();
 
         fields.put("score", String.valueOf(score));
         fields.put("group_id", groupId);
@@ -481,24 +524,32 @@ public class EventService extends Service
         scorePost.post(fields);
     }
 
-    public void addGroupEventScore(String eventId, String groupId, float score,
-                              final PostEventScoreCallback callback, AccessToken accessToken)
+    public void addGroupEventScore(
+        LoginService.AccessToken accessToken,
+        String eventId,
+        String groupId,
+        float score,
+        final PostEventScoreCallback callback)
     {
-        addGroupEventScore(eventId, groupId, score, false, null, callback, accessToken);
+        addGroupEventScore(accessToken, eventId, groupId, score, false, null, callback);
     }
 
-    public void addGroupEventScore(String eventId, String groupId,
-                                   float score, boolean autoJoin, JSONObject leaderboardInfo,
-                                   final PostEventScoreCallback callback, AccessToken accessToken)
+    public void addGroupEventScore(
+        LoginService.AccessToken accessToken,
+        String eventId,
+        String groupId,
+        float score,
+        boolean autoJoin,
+        JSONObject leaderboardInfo,
+        final PostEventScoreCallback callback)
     {
-        JsonRequest scorePost = new JsonRequest(getRuntime(),
-            getLocation() + "/event/" + eventId + "/group/score/add",
-            new Request.RequestResult()
+        JsonRequest scorePost = new JsonRequest(getLocation() + "/event/" + eventId + "/group/score/add",
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result status)
             {
-                if (status == Status.success)
+                if (status == Request.Result.success)
                 {
                     JSONObject result = ((JsonRequest) request).getObject();
 
@@ -509,10 +560,10 @@ public class EventService extends Service
                         newScore = ((float) result.optDouble("score"));
                     }
 
-                    callback.complete(newScore, Status.success);
+                    callback.complete(EventService.this, request, status, newScore);
                 } else
                 {
-                    callback.complete(0, status);
+                    callback.complete(EventService.this, request, status, 0);
                 }
             }
         });
@@ -520,7 +571,7 @@ public class EventService extends Service
         scorePost.setAPIVersion(getAPIVersion());
         scorePost.setToken(accessToken);
 
-        Map<String, Object> fields = new HashMap<String, Object>();
+        Request.Fields fields = new Request.Fields();
 
         fields.put("score", String.valueOf(score));
         fields.put("group_id", groupId);
@@ -535,17 +586,18 @@ public class EventService extends Service
     }
 
     public void getGroupEventParticipants(
-        String eventId, String groupId,
-        final GroupProfileParticipantsCallback callback, AccessToken accessToken)
+        LoginService.AccessToken accessToken,
+        String eventId,
+        String groupId,
+        final GroupProfileParticipantsCallback callback)
     {
-        currentRequest = new JsonRequest(getRuntime(),
-            getLocation() + "/event/" + eventId + "/group/participants",
-            new Request.RequestResult()
+        currentRequest = new JsonRequest(getLocation() + "/event/" + eventId + "/group/participants",
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result status)
             {
-                if (status == Status.success)
+                if (status == Request.Result.success)
                 {
                     JSONObject result = ((JsonRequest) request).getObject();
 
@@ -572,11 +624,11 @@ public class EventService extends Service
                         }
                     }
 
-                    callback.complete(participants, Status.success);
+                    callback.complete(EventService.this, request, status, participants);
                 }
                 else
                 {
-                    callback.complete(null, status);
+                    callback.complete(EventService.this, request, status, null);
                 }
 
                 currentRequest = null;
@@ -584,7 +636,7 @@ public class EventService extends Service
         });
 
         currentRequest.setAPIVersion(getAPIVersion());
-        Map<String, String> queryArguments = new HashMap<String, String>();
+        Request.Fields queryArguments = new Request.Fields();
         queryArguments.put("group_id", groupId);
         currentRequest.setQueryArguments(queryArguments);
 
@@ -592,45 +644,54 @@ public class EventService extends Service
         currentRequest.get();
     }
 
-    public void getEvents(final EventListCallback callback, AccessToken accessToken)
+    public void getEvents(
+        LoginService.AccessToken accessToken,
+        final EventListCallback callback)
     {
-        getEvents(null, 0, callback, accessToken);
+        getEvents(accessToken, null, 0, callback);
     }
 
 
-    public void getEvents(int extraTime, final EventListCallback callback, AccessToken accessToken)
+    public void getEvents(
+        LoginService.AccessToken accessToken,
+        int extraTime,
+        final EventListCallback callback)
     {
-        getEvents(null, extraTime, callback, accessToken);
+        getEvents(accessToken, null, extraTime, callback);
     }
 
-    public void getEvents(String groupContext, int extraTime,
-                          final EventListCallback callback, AccessToken accessToken)
+    public void getEvents(
+        LoginService.AccessToken accessToken,
+        String groupContext,
+        int extraTime,
+        final EventListCallback callback)
     {
         if (accessToken == null)
         {
-            callback.complete(null, Status.forbidden);
+            callback.complete(EventService.this, null, Request.Result.forbidden, null);
             return;
         }
 
         if (currentRequest != null)
         {
-            callback.complete(null, Status.pending);
+            callback.complete(EventService.this, null, Request.Result.pending, null);
             return;
         }
 
-        currentRequest = new JsonRequest(getRuntime(), getLocation() + "/events", new Request.RequestResult()
+        currentRequest = new JsonRequest(getLocation() + "/events", new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result result)
             {
-                if (status == Status.success)
+                if (result == Request.Result.success)
                 {
                     EventList events = new EventList();
                     events.read(((JsonRequest) request).getObject());
-                    callback.complete(events, Status.success);
-                } else
+                    callback.complete(EventService.this, request, result, events);
+                }
+                else
                 {
-                    callback.complete(null, status);
+                    callback.complete(EventService.this, request, result, null);
                 }
 
                 currentRequest = null;
@@ -638,7 +699,7 @@ public class EventService extends Service
         });
 
         currentRequest.setAPIVersion(getAPIVersion());
-        Map<String, String> queryArguments = new HashMap<String, String>();
+        Request.Fields queryArguments = new Request.Fields();
 
         if (groupContext != null)
         {

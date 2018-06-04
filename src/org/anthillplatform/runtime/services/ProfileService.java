@@ -1,15 +1,10 @@
 package org.anthillplatform.runtime.services;
 
 import org.anthillplatform.runtime.AnthillRuntime;
-import org.anthillplatform.runtime.Status;
-import org.anthillplatform.runtime.entity.AccessToken;
-import org.anthillplatform.runtime.request.JsonRequest;
-import org.anthillplatform.runtime.request.Request;
-import org.anthillplatform.runtime.request.StringRequest;
+import org.anthillplatform.runtime.requests.JsonRequest;
+import org.anthillplatform.runtime.requests.Request;
+import org.anthillplatform.runtime.requests.StringRequest;
 import org.json.JSONObject;
-
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * User profiles service for Anthill platform
@@ -21,76 +16,53 @@ public class ProfileService extends Service
     public static final String ID = "profile";
     public static final String API_VERSION = "0.2";
 
-    private static ProfileService instance;
-    public static ProfileService get() { return instance; }
-    private static void set(ProfileService service) { instance = service; }
-
-    private Map<String, Profile> profiles;
-
-    public class Profile
-    {
-        private JSONObject ext;
-
-        @SuppressWarnings("SuspiciousMethodCalls")
-        public Profile(JSONObject object)
-        {
-            this.ext = object;
-        }
-
-        public ProfileService getService()
-        {
-            return ProfileService.this;
-        }
-
-        public JSONObject getObject()
-        {
-            return ext;
-        }
-    }
-
     /**
      * Please note that you should not create an instance of the service yourself,
-     * and use ProfileService.get() to get existing one instead
+     * and use AnthillRuntime.Get(ProfileService.ID, ProfileService.class) to get existing one instead
      */
     public ProfileService(AnthillRuntime runtime, String location)
     {
         super(runtime, location, ID, API_VERSION);
-
-        set(this);
-
-        this.profiles = new HashMap<String, Profile>();
     }
 
-    public interface ProfileCallback
+    public static ProfileService Get()
     {
-        void complete(Profile profile, Status status);
+        return AnthillRuntime.Get(ID, ProfileService.class);
     }
 
-    public void getMyProfile(AccessToken accessToken, final ProfileCallback profileCallback)
+    public interface GetProfileCallback
     {
-        getAccountProfile("me", accessToken, profileCallback);
+        void complete(ProfileService profileService, Request request, Request.Result result, JSONObject profile);
     }
 
-    public void getAccountProfile(final String account, AccessToken accessToken, final ProfileCallback profileCallback)
+    public interface UpdateProfileCallback
     {
-        JsonRequest jsonRequest = new JsonRequest(getRuntime(), getLocation() + "/profile/" + account,
-            new Request.RequestResult()
+        void complete(ProfileService profileService, Request request, Request.Result result, JSONObject profile);
+    }
+
+    public void getMyProfile(LoginService.AccessToken accessToken, final GetProfileCallback callback)
+    {
+        getAccountProfile(accessToken, "me", callback);
+    }
+
+    public void getAccountProfile(
+            LoginService.AccessToken accessToken, final String account,
+            final GetProfileCallback callback)
+    {
+        JsonRequest jsonRequest = new JsonRequest(getLocation() + "/profile/" + account,
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result result)
             {
-                if (status == Status.success)
+                if (result == Request.Result.success)
                 {
                     JsonRequest asJson = ((JsonRequest) request);
-
-                    Profile profile = new Profile(asJson.getObject());
-
-                    ProfileService.this.registerProfile(account, profile);
-
-                    profileCallback.complete(profile, Status.success);
-                } else
+                    callback.complete(ProfileService.this, request, result, asJson.getObject());
+                }
+                else
                 {
-                    profileCallback.complete(null, status);
+                    callback.complete(ProfileService.this, request, result, null);
                 }
             }
         });
@@ -100,78 +72,82 @@ public class ProfileService extends Service
         jsonRequest.get();
     }
 
-    public void createAccountProfile(String account, JSONObject ext, AccessToken accessToken,
-                              final ProfileCallback profileCallback)
+    public void createAccountProfile(
+        LoginService.AccessToken accessToken,
+        String account,
+        JSONObject ext,
+        final UpdateProfileCallback callback)
     {
-        Map<String, String> queryArguments = new HashMap<String, String>();
-        queryArguments.put("access_token", accessToken.getToken());
-
         StringRequest jsonRequest = new StringRequest(getRuntime(),
             getLocation() + "/profile/" + account,
-            new Request.RequestResult()
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result result)
             {
-                profileCallback.complete(null, status);
+                callback.complete(ProfileService.this, request, result, null);
             }
         });
 
-        Map<String, Object> options = new HashMap<String, Object>();
+        Request.Fields options = new Request.Fields();
 
         options.put("data", ext.toString());
 
-        jsonRequest.setQueryArguments(queryArguments);
+        jsonRequest.setToken(accessToken);
         jsonRequest.post(options);
     }
 
-    public void createMyProfile(JSONObject ext, AccessToken accessToken,
-          final ProfileCallback profileCallback)
+    public void createMyProfile(
+        LoginService.AccessToken accessToken,
+        JSONObject ext,
+        final UpdateProfileCallback callback)
     {
-        createAccountProfile("me", ext, accessToken, profileCallback);
+        createAccountProfile(accessToken, "me", ext, callback);
     }
 
-    public void updateAccountProfile(String account, JSONObject ext, String path, boolean merge,
-                              AccessToken accessToken,
-                              final ProfileCallback profileCallback)
+    public void updateAccountProfile(
+        LoginService.AccessToken accessToken,
+        String account,
+        JSONObject ext,
+        String path,
+        boolean merge,
+        final UpdateProfileCallback callback)
     {
-        Map<String, String> queryArguments = new HashMap<String, String>();
-        queryArguments.put("access_token", accessToken.getToken());
-
-        StringRequest jsonRequest = new StringRequest(getRuntime(),
+        final JsonRequest jsonRequest = new JsonRequest(
             getLocation() + "/profile/" + account + (path != null ? "/" + path : ""),
-            new Request.RequestResult()
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result result)
             {
-                profileCallback.complete(null, status);
+                if (result == Request.Result.success)
+                {
+                    JsonRequest asJson = ((JsonRequest) request);
+                    callback.complete(ProfileService.this, request, result, asJson.getObject());
+                }
+                else
+                {
+                    callback.complete(ProfileService.this, request, result, null);
+                }
             }
         });
 
-        Map<String, Object> options = new HashMap<String, Object>();
+        Request.Fields options = new Request.Fields();
 
         options.put("data", ext.toString());
         options.put("merge", merge ? "true" : "false");
 
-        jsonRequest.setQueryArguments(queryArguments);
+        jsonRequest.setToken(accessToken);
         jsonRequest.post(options);
     }
 
-    public void updateMyProfile(JSONObject ext, String path, boolean merge,
-                              AccessToken accessToken,
-                              final ProfileCallback profileCallback)
+    public void updateMyProfile(
+        LoginService.AccessToken accessToken,
+        JSONObject ext,
+        String path,
+        boolean merge,
+        final UpdateProfileCallback callback)
     {
-        updateAccountProfile("me", ext, path, merge, accessToken, profileCallback);
-    }
-
-    private void registerProfile(String account, Profile profile)
-    {
-        profiles.put(account, profile);
-    }
-
-    public Map<String, Profile> getProfiles()
-    {
-        return profiles;
+        updateAccountProfile(accessToken, "me", ext, path, merge, callback);
     }
 }

@@ -1,17 +1,13 @@
 package org.anthillplatform.runtime.services;
 
-import org.anthillplatform.runtime.Status;
-import org.anthillplatform.runtime.request.JsonRequest;
-import org.anthillplatform.runtime.request.Request;
-import org.anthillplatform.runtime.request.StringRequest;
+import org.anthillplatform.runtime.requests.JsonRequest;
+import org.anthillplatform.runtime.requests.Request;
+import org.anthillplatform.runtime.requests.StringRequest;
 import org.anthillplatform.runtime.AnthillRuntime;
-import org.anthillplatform.runtime.entity.AccessToken;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * User ranking service for Anthill Platform
@@ -22,10 +18,6 @@ public class LeaderboardService extends Service
 {
     public static final String ID = "leaderboard";
     public static final String API_VERSION = "0.2";
-
-    private static LeaderboardService instance;
-    public static LeaderboardService get() { return instance; }
-    private static void set(LeaderboardService service) { instance = service; }
 
     public static class LeaderboardResult
     {
@@ -48,48 +40,68 @@ public class LeaderboardService extends Service
 
     /**
      * Please note that you should not create an instance of the service yourself,
-     * and use LeaderboardService.get() to get existing one instead
+     * and use AnthillRuntime.Get(LeaderboardService.ID, LeaderboardService.class) to get existing one instead
      */
     public LeaderboardService(AnthillRuntime runtime, String location)
     {
         super(runtime, location, ID, API_VERSION);
-
-        set(this);
     }
 
-    public interface LeaderboardCallback
+    public static LeaderboardService Get()
     {
-        void complete(LeaderboardService service, LeaderboardResult result, Status status);
+        return AnthillRuntime.Get(ID, LeaderboardService.class);
     }
 
-    public void getLeaderboard(String name, String order, AccessToken accessToken,
-              final LeaderboardCallback profileCallback)
+    public interface PostLeaderboardCallback
     {
-        getLeaderboard(name, order, 100, 0, accessToken, profileCallback);
+        void complete(LeaderboardService service, Request request, Request.Result result);
     }
 
-    public void getLeaderboard(String name, String order, int limit, int offset,
-                               AccessToken accessToken, final LeaderboardCallback profileCallback)
+    public interface GetLeaderboardCallback
     {
-        getLeaderboard(name, order, limit, offset, null, accessToken, profileCallback);
+        void complete(LeaderboardService service, Request request, Request.Result result, LeaderboardResult data);
     }
 
-    public void getLeaderboard(String name, String order, int limit, int offset, String arbitraryAccount,
-                               AccessToken accessToken, final LeaderboardCallback profileCallback)
+    public void getLeaderboard(
+        LoginService.AccessToken accessToken,
+        String name,
+        String order,
+        final GetLeaderboardCallback profileCallback)
     {
-        JsonRequest jsonRequest = new JsonRequest(getRuntime(), getLocation() + "/leaderboard/" +
-                order + "/" + name,
+        getLeaderboard(accessToken, name, order, 100, 0, profileCallback);
+    }
 
-            new Request.RequestResult()
+    public void getLeaderboard(
+        LoginService.AccessToken accessToken,
+        String name,
+        String order,
+        int limit,
+        int offset,
+        final GetLeaderboardCallback profileCallback)
+    {
+        getLeaderboard(accessToken, name, order, limit, offset, null, profileCallback);
+    }
+
+    public void getLeaderboard(
+        LoginService.AccessToken accessToken,
+        String name,
+        String order,
+        int limit,
+        int offset,
+        String arbitraryAccount,
+        final GetLeaderboardCallback profileCallback)
+    {
+        JsonRequest jsonRequest = new JsonRequest(getLocation() + "/leaderboard/" + order + "/" + name,
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result result)
             {
-                if (status == Status.success)
+                if (result == Request.Result.success)
                 {
                     JsonRequest asJson = ((JsonRequest) request);
 
-                    LeaderboardResult result = new LeaderboardResult();
+                    LeaderboardResult data = new LeaderboardResult();
 
                     JSONArray entries = asJson.getObject().getJSONArray("data");
                     for (int i = 0, t = entries.length(); i < t; i++)
@@ -104,18 +116,18 @@ public class LeaderboardService extends Service
                         entry.rank = entryValue.optInt("rank", 1);
                         entry.profile = entryValue.optJSONObject("profile");
 
-                        result.getEntries().add(entry);
+                        data.getEntries().add(entry);
                     }
-                    profileCallback.complete(LeaderboardService.this, result, Status.success);
+                    profileCallback.complete(LeaderboardService.this, request, result, data);
                 }
                 else
                 {
-                    profileCallback.complete(LeaderboardService.this, null, status);
+                    profileCallback.complete(LeaderboardService.this, request, result, null);
                 }
             }
         });
 
-        Map<String, String> args = new HashMap<String, String >();
+        Request.Fields args = new Request.Fields();
 
         args.put("limit", String.valueOf(limit));
         args.put("offset", String.valueOf(offset));
@@ -131,36 +143,41 @@ public class LeaderboardService extends Service
         jsonRequest.get();
     }
 
-    public void postLeaderboard(String name, String order, float score,
-                                String display_name, int expire_in,
-                                AccessToken accessToken,
-                                final AnthillRuntime.Callback callback)
+    public void postLeaderboard(
+        LoginService.AccessToken accessToken,
+        String name,
+        String order,
+        float score,
+        String display_name,
+        int expire_in,
+        final PostLeaderboardCallback callback)
     {
-        postLeaderboard(name, order, score, display_name, expire_in, null, null, accessToken, callback);
+        postLeaderboard(accessToken, name, order, score, display_name, expire_in, null, null, callback);
     }
 
-    public void postLeaderboard(String name, String order, float score,
-                                String display_name, int expire_in,
-                                JSONObject profile, String arbitraryAccount,
-                                AccessToken accessToken,
-                                final AnthillRuntime.Callback callback)
+    public void postLeaderboard(
+        LoginService.AccessToken accessToken,
+        String name,
+        String order,
+        float score,
+        String display_name,
+        int expire_in,
+        JSONObject profile,
+        String arbitraryAccount,
+        final PostLeaderboardCallback callback)
     {
-        Map<String, String> queryArguments = new HashMap<String, String>();
-
-        queryArguments.put("access_token", accessToken.getToken());
-
         StringRequest jsonRequest = new StringRequest(getRuntime(),
             getLocation() + "/leaderboard/" + order + "/" + name,
-                new Request.RequestResult()
-                {
-                    @Override
-                    public void complete(Request request, Status status)
-                    {
-                        callback.complete(LeaderboardService.this.getRuntime(), status);
-                    }
-                });
+            new Request.RequestCallback()
+        {
+            @Override
+            public void complete(Request request, Request.Result result)
+            {
+                callback.complete(LeaderboardService.this, request, result);
+            }
+        });
 
-        Map<String, Object> options = new HashMap<String, Object>();
+        Request.Fields options = new Request.Fields();
 
         options.put("score", String.valueOf(score));
         options.put("display_name", display_name);
@@ -177,7 +194,7 @@ public class LeaderboardService extends Service
             options.put("profile", profile.toString(0));
         }
 
-        jsonRequest.setQueryArguments(queryArguments);
+        jsonRequest.setToken(accessToken);
         jsonRequest.post(options);
     }
 }

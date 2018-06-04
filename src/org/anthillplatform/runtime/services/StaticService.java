@@ -1,15 +1,11 @@
 package org.anthillplatform.runtime.services;
 
 import org.anthillplatform.runtime.AnthillRuntime;
-import org.anthillplatform.runtime.Status;
-import org.anthillplatform.runtime.entity.AccessToken;
-import org.anthillplatform.runtime.request.JsonRequest;
-import org.anthillplatform.runtime.request.Request;
+import org.anthillplatform.runtime.requests.JsonRequest;
+import org.anthillplatform.runtime.requests.Request;
 import org.json.JSONObject;
 
 import java.io.InputStream;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * Simple static files hosting service (for players to upload)
@@ -21,53 +17,55 @@ public class StaticService extends Service
     public static final String ID = "static";
     public static final String API_VERSION = "0.2";
 
-    private static StaticService instance;
-    public static StaticService get() { return instance; }
-    private static void set(StaticService service) { instance = service; }
-
     /**
      * Please note that you should not create an instance of the service yourself,
-     * and use StaticService.get() to get existing one instead
+     * and use AnthillRuntime.Get(StaticService.ID, StaticService.class) to get existing one instead
      */
     public StaticService(AnthillRuntime runtime, String location)
     {
         super(runtime, location, ID, API_VERSION);
-
-        set(this);
     }
 
-    public interface FileUploadCallback
+    public static StaticService Get()
     {
-        void complete(String url, Status status);
+        return AnthillRuntime.Get(ID, StaticService.class);
     }
 
-    public void uploadFile(InputStream file, String fileName,
-                           AccessToken accessToken, final FileUploadCallback callback)
+    public interface ReportUploadCallback
     {
-        JsonRequest jsonRequest = new JsonRequest(getRuntime(), getLocation() + "/upload",
-            new Request.RequestResult()
+        void complete(StaticService service, Request request, Request.Result result, String url);
+    }
+
+    public void upload(
+        LoginService.AccessToken accessToken,
+        InputStream stream, String fileName,
+        final ReportUploadCallback callback)
+    {
+        JsonRequest jsonRequest = new JsonRequest(getLocation() + "/upload",
+            new Request.RequestCallback()
         {
             @Override
-            public void complete(Request request, Status status)
+            public void complete(Request request, Request.Result result)
             {
-                if (status == Status.success)
+                if (result == Request.Result.success)
                 {
                     JSONObject response = ((JsonRequest) request).getObject();
 
-                    callback.complete(response.optString("url"), Status.success);
-                } else
+                    callback.complete(StaticService.this, request, result, response.optString("url"));
+                }
+                else
                 {
-                    callback.complete(null, status);
+                    callback.complete(StaticService.this, request, result, null);
                 }
             }
         });
 
-        Map<String, String> query = new HashMap<String, String>();
+        Request.Fields query = new Request.Fields();
         query.put("filename", fileName);
 
         jsonRequest.setAPIVersion(getAPIVersion());
         jsonRequest.setQueryArguments(query);
         jsonRequest.setToken(accessToken);
-        jsonRequest.put(file);
+        jsonRequest.put(stream);
     }
 }
