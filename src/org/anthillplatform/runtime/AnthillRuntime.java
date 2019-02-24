@@ -1,6 +1,8 @@
 package org.anthillplatform.runtime;
 
 import com.mashape.unirest.http.Unirest;
+import com.mashape.unirest.http.options.Option;
+import com.mashape.unirest.http.options.Options;
 import org.anthillplatform.runtime.services.*;
 import org.anthillplatform.runtime.util.ApplicationInfo;
 import org.anthillplatform.runtime.util.Listener;
@@ -180,8 +182,6 @@ public class AnthillRuntime
         Storage storage,
         Listener listener)
     {
-        Unirest.setTimeouts(60000, 60000);
-
         this.applicationInfo = applicationInfo;
         this.initialized = false;
         this.services = new HashMap<String, Service>();
