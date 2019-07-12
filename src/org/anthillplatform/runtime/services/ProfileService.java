@@ -40,6 +40,11 @@ public class ProfileService extends Service
         void complete(ProfileService profileService, Request request, Request.Result result, JSONObject profile);
     }
 
+    public interface UpdateProfilesCallback
+    {
+        void complete(ProfileService profileService, Request request, Request.Result result, JSONObject profiles);
+    }
+
     public void getMyProfile(LoginService.AccessToken accessToken, final GetProfileCallback callback)
     {
         getAccountProfile(accessToken, "me", callback);
@@ -135,6 +140,40 @@ public class ProfileService extends Service
         Request.Fields options = new Request.Fields();
 
         options.put("data", ext.toString());
+        options.put("merge", merge ? "true" : "false");
+
+        jsonRequest.setToken(accessToken);
+        jsonRequest.post(options);
+    }
+
+    public void updateMultipleAccountProfiles(
+        LoginService.AccessToken accessToken,
+        JSONObject accounts,
+        boolean merge,
+        final UpdateProfilesCallback callback)
+    {
+        final JsonRequest jsonRequest = new JsonRequest(
+            getLocation() + "/profiles",
+            new Request.RequestCallback()
+            {
+                @Override
+                public void complete(Request request, Request.Result result)
+                {
+                    if (result == Request.Result.success)
+                    {
+                        JsonRequest asJson = ((JsonRequest) request);
+                        callback.complete(ProfileService.this, request, result, asJson.getObject());
+                    }
+                    else
+                    {
+                        callback.complete(ProfileService.this, request, result, null);
+                    }
+                }
+            });
+
+        Request.Fields options = new Request.Fields();
+
+        options.put("data", accounts.toString());
         options.put("merge", merge ? "true" : "false");
 
         jsonRequest.setToken(accessToken);

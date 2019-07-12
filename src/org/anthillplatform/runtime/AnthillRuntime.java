@@ -83,6 +83,9 @@ public class AnthillRuntime
     {
         Service service = services.get(serviceId);
 
+        if (service == null)
+            return null;
+
         if (tClass.isInstance(service))
         {
             //noinspection unchecked
