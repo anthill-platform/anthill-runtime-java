@@ -5,6 +5,7 @@ import org.anthillplatform.runtime.util.ApplicationInfo;
 import org.anthillplatform.runtime.requests.JsonRequest;
 import org.anthillplatform.runtime.requests.Request;
 import org.anthillplatform.runtime.util.JsonRPC;
+import org.anthillplatform.runtime.util.Utils;
 import org.anthillplatform.runtime.util.WebSocketJsonRPC;
 import org.java_websocket.handshake.ServerHandshake;
 import org.json.JSONArray;
@@ -84,6 +85,12 @@ public class GameService extends Service
             this.ip = ip;
         }
     }
+
+    public interface IssueBanCallback
+    {
+        void result(GameService service, Request request, Request.Result result);
+    }
+
 
     public static class PartyMember
     {
@@ -1567,5 +1574,34 @@ public class GameService extends Service
             args);
 
         return partySession;
+    }
+
+    public void issueABan(
+        LoginService.AccessToken accessToken,
+        String account,
+        Date expires,
+        String reason,
+        IssueBanCallback callback)
+    {
+        JsonRequest jsonRequest = new JsonRequest(getLocation() + "/ban/issue",
+            new Request.RequestCallback()
+        {
+            @Override
+            public void complete(Request request, Request.Result result)
+            {
+                callback.result(GameService.this, request, result);
+            }
+        });
+
+        Request.Fields fields = new Request.Fields();
+
+        fields.put("account", account);
+        fields.put("reason", reason);
+        fields.put("expires", Utils.DATE_FORMAT.format(expires));
+
+        jsonRequest.setAPIVersion(getAPIVersion());
+        jsonRequest.setToken(accessToken);
+        jsonRequest.post(fields);
+
     }
 }
