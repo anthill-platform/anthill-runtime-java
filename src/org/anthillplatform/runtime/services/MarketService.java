@@ -119,6 +119,11 @@ public class MarketService extends Service
         void complete(Request request, Request.Result result, List<MarketOrderEntry> entries);
     }
 
+    public interface GetMarketOrderCallback
+    {
+        void complete(Request request, Request.Result result, MarketOrderEntry order);
+    }
+
     public void getMarketSettings(
         String marketName,
         LoginService.AccessToken accessToken,
@@ -404,7 +409,6 @@ public class MarketService extends Service
     public void deleteOrder(
         String marketName,
         String orderId,
-        int fulfillAmount,
         LoginService.AccessToken accessToken,
         final DeleteOrderCallback callback)
     {
@@ -617,7 +621,6 @@ public class MarketService extends Service
         jsonRequest.get();
     }
 
-
     public void listMyOrders(
             String marketName,
             LoginService.AccessToken accessToken,
@@ -684,6 +687,64 @@ public class MarketService extends Service
                             return;
                         }
                     }
+                }
+
+                callback.complete(request, status, null);
+            }
+        });
+
+        jsonRequest.setAPIVersion(getAPIVersion());
+        jsonRequest.setToken(accessToken);
+        jsonRequest.get();
+    }
+
+    public void getOrder(
+        String marketName, String orderId,
+        LoginService.AccessToken accessToken,
+        final GetMarketOrderCallback callback)
+    {
+        JsonRequest jsonRequest = new JsonRequest(
+            getLocation() + "/markets/" + marketName + "/orders/" + orderId,
+            new Request.RequestCallback()
+        {
+            @Override
+            public void complete(Request request, Request.Result status)
+            {
+                if (status == Request.Result.success)
+                {
+                    JSONObject result = ((JsonRequest) request).getObject();
+
+                    MarketOrderEntry e = new MarketOrderEntry();
+                    e.orderId = result.optString("order_id");
+                    e.ownerId = result.optString("owner_id");
+                    e.giveItem = result.optString("give_item");
+                    e.takeItem = result.optString("take_item");
+                    e.giveAmount = result.optInt("give_amount", 1);
+                    e.takeAmount = result.optInt("take_amount", 1);
+                    e.available = result.optInt("available", 1);
+                    e.givePayload = result.optJSONObject("give_payload");
+                    e.takePayload = result.optJSONObject("take_payload");
+
+                    try
+                    {
+                        e.time = getTimeFormat().parse(result.getString("time"));
+                    }
+                    catch (ParseException | JSONException ex)
+                    {
+                        e.time = null;
+                    }
+
+                    try
+                    {
+                        e.deadline = getTimeFormat().parse(result.getString("deadline"));
+                    }
+                    catch (ParseException | JSONException ex)
+                    {
+                        e.deadline = null;
+                    }
+
+                    callback.complete(request, status, e);
+                    return;
                 }
 
                 callback.complete(request, status, null);
