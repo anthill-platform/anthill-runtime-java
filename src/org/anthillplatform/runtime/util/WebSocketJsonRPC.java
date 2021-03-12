@@ -1,7 +1,6 @@
 package org.anthillplatform.runtime.util;
 
 import org.java_websocket.client.WebSocketClient;
-import org.java_websocket.drafts.Draft_17;
 import org.json.JSONObject;
 
 import java.net.URI;
@@ -12,7 +11,7 @@ public abstract class WebSocketJsonRPC extends WebSocketClient
 
     public WebSocketJsonRPC(URI serverURI)
     {
-        super(serverURI, new Draft_17());
+        super(serverURI);
 
         rpc = new JsonRPC()
         {

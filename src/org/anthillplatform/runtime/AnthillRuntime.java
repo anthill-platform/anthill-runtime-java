@@ -118,6 +118,7 @@ public class AnthillRuntime
         register(StaticService.ID, StaticService.class);
         register(StoreService.ID, StoreService.class);
         register(BlogService.ID, BlogService.class);
+        register(MarketService.ID, MarketService.class);
     }
 
     public Service setService(String serviceId, String location)

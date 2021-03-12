@@ -4,7 +4,12 @@ import org.anthillplatform.runtime.AnthillRuntime;
 import org.anthillplatform.runtime.requests.JsonRequest;
 import org.anthillplatform.runtime.requests.Request;
 import org.anthillplatform.runtime.requests.StringRequest;
+import org.json.JSONArray;
 import org.json.JSONObject;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * User profiles service for Anthill platform
@@ -33,6 +38,11 @@ public class ProfileService extends Service
     public interface GetProfileCallback
     {
         void complete(ProfileService profileService, Request request, Request.Result result, JSONObject profile);
+    }
+
+    public interface GetMultipleProfilesCallback
+    {
+        void complete(ProfileService profileService, Request request, Request.Result result, Map<String, JSONObject> profiles);
     }
 
     public interface UpdateProfileCallback
@@ -71,6 +81,61 @@ public class ProfileService extends Service
                 }
             }
         });
+
+        jsonRequest.setAPIVersion(getAPIVersion());
+        jsonRequest.setToken(accessToken);
+        jsonRequest.get();
+    }
+
+    public void getMultipleAccountProfiles(
+        LoginService.AccessToken accessToken, final Set<String> accounts, final Set<String> profileFields,
+        final GetMultipleProfilesCallback callback)
+    {
+        JsonRequest jsonRequest = new JsonRequest(getLocation() + "/profiles",
+            new Request.RequestCallback()
+        {
+            @Override
+            public void complete(Request request, Request.Result result)
+            {
+                if (result == Request.Result.success)
+                {
+                    JsonRequest asJson = ((JsonRequest) request);
+                    JSONObject profiles = asJson.getObject();
+                    Map<String, JSONObject> pp = new HashMap<>();
+
+                    for (String account : profiles.keySet())
+                    {
+                        pp.put(account, profiles.optJSONObject(account));
+                    }
+
+                    callback.complete(ProfileService.this, request, result, pp);
+                }
+                else
+                {
+                    callback.complete(ProfileService.this, request, result, null);
+                }
+            }
+        });
+
+        Request.Fields fields = new Request.Fields();
+
+        JSONArray accounts_ = new JSONArray();
+        JSONArray profileFields_ = new JSONArray();
+
+        for (String account : accounts)
+        {
+            accounts_.put(account);
+        }
+
+        for (String profileField : profileFields)
+        {
+            profileFields_.put(profileField);
+        }
+
+        fields.put("accounts", accounts_);
+        fields.put("profile_fields", profileFields_);
+
+        jsonRequest.setQueryArguments(fields);
 
         jsonRequest.setAPIVersion(getAPIVersion());
         jsonRequest.setToken(accessToken);
