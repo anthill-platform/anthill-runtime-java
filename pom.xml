@@ -10,7 +10,7 @@
 	<groupId>com.github.anthill-platform</groupId>
 	<artifactId>anthill-runtime-java</artifactId>
 	<packaging>jar</packaging>
-	<version>0.2.9</version>
+	<version>0.2.10</version>
 
 	<name>Anthill Java Runtime</name>
 	<description>Java Runtime for Anthill Platform</description>

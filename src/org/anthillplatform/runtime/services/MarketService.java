@@ -61,6 +61,7 @@ public class MarketService extends Service
         public JSONObject givePayload;
         public JSONObject takePayload;
         public int available;
+        public JSONObject orderPayload;
         public Date time;
         public Date deadline;
     }
@@ -324,6 +325,7 @@ public class MarketService extends Service
         int takeAmount,
         JSONObject takePayload,
         int amount,
+        JSONObject orderPayload,
         Date deadline,
         LoginService.AccessToken accessToken,
         final PostOrderCallback callback)
@@ -360,6 +362,10 @@ public class MarketService extends Service
         fields.put("take_amount", takeAmount);
         fields.put("take_payload", takePayload.toString());
         fields.put("orders_amount", amount);
+        if (orderPayload != null)
+        {
+            fields.put("payload", orderPayload.toString());
+        }
         fields.put("deadline", getTimeFormat().format(deadline));
 
         jsonRequest.setAPIVersion(getAPIVersion());
@@ -524,6 +530,7 @@ public class MarketService extends Service
                                 e.available = entry.optInt("available", 1);
                                 e.givePayload = entry.optJSONObject("give_payload");
                                 e.takePayload = entry.optJSONObject("take_payload");
+                                e.orderPayload = entry.optJSONObject("payload");
 
                                 try
                                 {
@@ -661,6 +668,7 @@ public class MarketService extends Service
                                 e.available = entry.optInt("available", 1);
                                 e.givePayload = entry.optJSONObject("give_payload");
                                 e.takePayload = entry.optJSONObject("take_payload");
+                                e.orderPayload = entry.optJSONObject("payload");
 
                                 try
                                 {
